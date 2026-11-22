@@ -2,10 +2,10 @@
 
 Application de diagnostic **Android TV / Google TV** — **JB Atomic Industries** ([site officiel](https://jbatomic.com/)).
 
-## Fonctions v1.0.0
+## Fonctions v1.1.0
 
-- Interface TV utilisable à la télécommande : modèle, version d’Android, cœurs CPU, RAM, stockage, réseau, décodeurs H.264, HEVC, AV1.
-- Portail de diagnostic **web local pour PC, tablette et smartphone**, avec export JSON et rafraîchissement.
+- Tableau de bord TV compact avec jauges circulaires RAM/stockage, six cartes et focus télécommande très contrasté.\n- Diagnostics système enrichis : build et correctif de sécurité, architectures CPU, RAM, stockage, réseau et IP, affichage, fréquence, HDR déclaré, sorties audio et codecs H.264/HEVC/VP9/AV1.\n- Onglets dédiés : Tableau de bord, Maintenance, Diagnostic détaillé, Portail PC, Mises à jour.\n- Maintenance sans root : effacement confirmé du **cache propre de TV Doctor** ; raccourcis vers stockage et réseau Android ; liste des applications avec lanceur visible et accès à leurs fiches de gestion Android.
+- Portail de diagnostic **web local pour PC, tablette et smartphone**, avec export JSON, rafraîchissement, fiche technique étendue et action POST confirmée pour nettoyer le cache propre de Doctor (jeton privé et contrôle de provenance).
 - Serveur HTTP **désactivé par défaut**, activable dans l'application TV, **port modifiable entre 1024 et 65535** (8766 par défaut).
 - URL d’accès privée avec jeton aléatoire renouvelé à chaque activation. Aucune commande système n'est exposée au web.
 - Vérification des mises à jour **GitHub Releases** à l'ouverture (maximum une fois toutes les 12 heures), et à la demande. Téléchargement d'une nouvelle APK officielle, puis **confirmation obligatoire par Android** pour l'installation.
@@ -37,7 +37,7 @@ Les mises à jour sont **détectées automatiquement**, mais l'installation ne p
 
 Le serveur local utilise **HTTP non chiffré** : ne l'activer que sur un réseau privé de confiance. Il est arrêté lorsque l'application est fermée ou le portail désactivé. Les diagnostics restent sur la TV jusqu'à consultation volontaire via le réseau local.
 
-Les API Android ne fournissent pas toutes les mesures : aucune promesse de FPS HDMI, de température universelle ou d'état eARC. La présence d'un décodeur ne garantit pas chaque profil ou résolution.
+Le nettoyage global des caches des autres applications et leur arrêt forcé ne sont **pas** implémentés : Android interdit ces opérations sans droits privilégiés, et elles risqueraient de perturber la TV. Le bouton Maintenance renvoie vers les réglages Android qui gèrent ces opérations. Les indications de débit dans les API système sont des estimations de capacités de liaison, pas des speedtests réels.\n\nLes API Android ne fournissent pas toutes les mesures : aucune promesse de FPS HDMI, de température universelle ou d'état eARC. La présence d'un décodeur ne garantit pas chaque profil ou résolution.
 
 ## Code
 
