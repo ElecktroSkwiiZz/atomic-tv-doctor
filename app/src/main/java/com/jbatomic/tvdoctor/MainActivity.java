@@ -12,6 +12,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.provider.DocumentsContract;
+import android.content.ActivityNotFoundException;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -41,6 +43,14 @@ public final class MainActivity extends Activity {
     private Boolean rootAuthorized=null;
     private boolean rootChecking=false;
     private JSONObject snapshot=new JSONObject();
+    private static final int FILES=6, FOLDER_PICKER=625;
+    private int currentPage=DASH;
+    private Uri selectedTree;
+    private String currentFolderId;
+    private final ArrayDeque<String> folderHistory=new ArrayDeque<>();
+    private boolean largestFirst=true;
+    private LinearLayout fileRows;
+    private TextView fileStatus, filePath;
 
     private static final int DASH=0, APPS=1, CLEAN=2, TECH=3, PORTAL=4, RELEASES=5;
     @Override public void onCreate(Bundle state) {
@@ -50,6 +60,7 @@ public final class MainActivity extends Activity {
         showPage(DASH);
         if(System.currentTimeMillis()-prefs.getLong("lastUpdateCheck",0)>12L*60*60*1000)checkUpdates(false);
     }
+    private String tr(String text){return DoctorI18n.translate(prefs==null?"fr":prefs.getString("language","fr"),text);}
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
     private GradientDrawable surface(int[] shades,int border,float radius){
         GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,shades);
@@ -58,7 +69,7 @@ public final class MainActivity extends Activity {
     }
     private TextView label(String value,int size,int color,boolean strong) {
         TextView v=new TextView(this);
-        v.setText(value);v.setTextSize(size);v.setTextColor(color);
+        v.setText(tr(value));v.setTextSize(size);v.setTextColor(color);
         v.setFontFeatureSettings("kern");v.setIncludeFontPadding(true);
         if(strong)v.setTypeface(Typeface.create("sans-serif-medium",Typeface.BOLD));
         return v;
@@ -78,7 +89,7 @@ public final class MainActivity extends Activity {
     }
     private Button button(String title){
         Button b=new Button(this);
-        b.setText(title);b.setAllCaps(false);b.setTextSize(13);
+        b.setText(tr(title));b.setAllCaps(false);b.setTextSize(13);
         b.setTextColor(TEXT);b.setMinHeight(0);b.setMinimumHeight(0);
         padding(b,7,0);focus(b);return b;
     }
@@ -103,7 +114,7 @@ public final class MainActivity extends Activity {
     private LinearLayout panel(String name,int accent){
         LinearLayout c=column();padding(c,16,12);
         c.setBackground(surface(new int[]{PANEL,0xff111e32},0xff304663,16));
-        TextView head=label(name.toUpperCase(Locale.FRANCE),11,accent,true);
+        TextView head=label(tr(name).toUpperCase(Locale.ROOT),11,accent,true);
         head.setLetterSpacing(.11f);c.addView(head);
         gap(c,5);return c;
     }
@@ -114,10 +125,11 @@ public final class MainActivity extends Activity {
         TextView t=label(value,12,MUTED,false);t.setMaxLines(3);parent.addView(t);
     }
     private void place(LinearLayout line,LinearLayout card){
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-1,1);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);
         p.setMargins(dp(5),dp(4),dp(5),dp(4));line.addView(card,p);
     }
     private void showPage(int n){
+        currentPage=n;
         LinearLayout root=column();root.setBackgroundColor(BG);
         padding(root,24,11);
         setContentView(root);
@@ -132,17 +144,24 @@ public final class MainActivity extends Activity {
         View spacer=new View(this);header.addView(spacer,new LinearLayout.LayoutParams(0,1,1));
         TextView publisher=label("JB ATOMIC INDUSTRIES    /    V "+BuildConfig.VERSION_NAME,10,MUTED,true);
         header.addView(publisher);
+        Button language=button(prefs.getString("language","fr").toUpperCase(Locale.ROOT)+" ▾");
+        LinearLayout.LayoutParams langParams=new LinearLayout.LayoutParams(dp(75),dp(37));
+        langParams.leftMargin=dp(13);
+        header.addView(language,langParams);
+        language.setContentDescription(tr("Langue"));
+        language.setOnClickListener(v->chooseLanguage());
         root.addView(header,new LinearLayout.LayoutParams(-1,dp(41)));
 
         LinearLayout navigation=row();
-        String[] tabs={"Vue d'ensemble","Applications","Maintenance","Technique","Portail PC","Mises à jour"};
+        String[] tabs={"Vue d'ensemble","Applications","Maintenance","Fichiers","Technique","Portail PC","Mises à jour"};
+        int[] destinations={DASH,APPS,CLEAN,FILES,TECH,PORTAL,RELEASES};
         for(int i=0;i<tabs.length;i++){
-            int dest=i;Button b=button(tabs[i]);
-            b.setTextColor(i==n?CYAN:TEXT);
+            int dest=destinations[i];Button b=button(tabs[i]);
+            b.setTextColor(dest==n?CYAN:TEXT);
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(41),1);
             p.setMargins(dp(3),0,dp(3),0);navigation.addView(b,p);
             b.setOnClickListener(v->showPage(dest));
-            if(i==n)b.setContentDescription("Onglet actif : "+tabs[i]);
+            if(dest==n)b.setContentDescription("Onglet actif : "+tr(tabs[i]));
         }
         LinearLayout.LayoutParams navLp=new LinearLayout.LayoutParams(-1,dp(41));
         navLp.topMargin=dp(6);root.addView(navigation,navLp);
@@ -160,6 +179,7 @@ public final class MainActivity extends Activity {
         if(n==DASH)dashboard();
         else if(n==APPS)applications();
         else if(n==CLEAN)maintenance();
+        else if(n==FILES)fileManager();
         else if(n==TECH)technical();
         else if(n==PORTAL)portal();
         else releases();
@@ -169,7 +189,7 @@ public final class MainActivity extends Activity {
     private String v(String key){return snapshot.optString(key,"Indisponible");}
     private String yes(String key){return snapshot.optBoolean(key)?"Oui":"Non";}
     private LinearLayout gaugeCard(String label,long value,long total,int tint){
-        LinearLayout card=panel(label,tint);
+        LinearLayout card=panel(label,tint);card.setMinimumHeight(dp(131));
         LinearLayout content=row();content.setGravity(Gravity.CENTER_VERTICAL);card.addView(content);
         DoctorGauge ring=new DoctorGauge(this);
         ring.setPercent(total>0?100f*value/total:0);
@@ -181,6 +201,31 @@ public final class MainActivity extends Activity {
         sub(details,Math.round(100d*value/Math.max(1,total))+" % utilisés");
         return card;
     }
+    private void chooseLanguage(){
+        String[] names={"Français","English","Español","Русский"};
+        String[] codes={"fr","en","es","ru"};
+        String selected=prefs.getString("language","fr");
+        int current=0;
+        for(int i=0;i<codes.length;i++)if(codes[i].equals(selected))current=i;
+        new AlertDialog.Builder(this).setTitle(tr("Langue"))
+            .setSingleChoiceItems(names,current,(dialog,index)->{
+                prefs.edit().putString("language",codes[index]).apply();
+                dialog.dismiss();
+                showPage(currentPage);
+            }).setNegativeButton(tr("Annuler"),null).show();
+    }
+    private void choosePanelResolution(){
+        final String[] choices={tr("Autre / non déterminée"),tr("4K UHD (3840 × 2160)"),tr("Full HD (1920 × 1080)")};
+        final String[] values={"auto","4k","1080p"};
+        String current=prefs.getString("panel_resolution","auto");
+        int selected=current.equals("4k")?1:current.equals("1080p")?2:0;
+        new AlertDialog.Builder(this).setTitle(tr("Résolution de la dalle"))
+            .setMessage("Android expose souvent une interface en 1080p même sur une dalle 4K. Ce choix est une déclaration manuelle, pas une mesure certifiée.")
+            .setSingleChoiceItems(choices,selected,(dialog,i)->{
+                prefs.edit().putString("panel_resolution",values[i]).apply();
+                dialog.dismiss();showPage(currentPage);
+            }).setNegativeButton(tr("Annuler"),null).show();
+    }
     private void dashboard(){
         snapshot();
         LinearLayout intro=row();
@@ -190,8 +235,8 @@ public final class MainActivity extends Activity {
         intro.addView(stamp);
         page.addView(intro);
         LinearLayout line1=row();
-        page.addView(line1,new LinearLayout.LayoutParams(-1,dp(139)));
-        LinearLayout hardware=panel("Système",CYAN);
+        page.addView(line1,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout hardware=panel("Système",CYAN);hardware.setMinimumHeight(dp(131));
         metric(hardware,v("model"),TEXT);
         sub(hardware,"Android "+v("android")+"  •  API "+snapshot.optInt("sdk"));
         sub(hardware,snapshot.optInt("cpuCores")+" cœurs  •  "+v("board"));
@@ -202,19 +247,26 @@ public final class MainActivity extends Activity {
         place(line1,gaugeCard("Stockage interne",disk-available,disk,GREEN));
 
         LinearLayout line2=row();
-        page.addView(line2,new LinearLayout.LayoutParams(-1,dp(139)));
-        LinearLayout display=panel("Vidéo et affichage",BLUE);
-        metric(display,snapshot.optInt("displayWidth")+" × "+snapshot.optInt("displayHeight"),TEXT);
-        sub(display,"Surface Android  •  "+snapshot.optDouble("refreshRateHz")+" Hz");
-        String modes=snapshot.optBoolean("exposed4kMode")?"Mode 4K exposé":"Dalle 4K : non déterminée";
-        sub(display,modes+"  •  HDR : "+yes("displayHdrSupported"));
+        page.addView(line2,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout display=panel("Vidéo et affichage",BLUE);display.setMinimumHeight(dp(131));
+        boolean panelKnown="user".equals(snapshot.optString("panelResolutionSource"));
+        if(panelKnown){
+            boolean is4k=snapshot.optInt("panelWidth")==3840;
+            metric(display,is4k?"4K UHD":"Full HD",TEXT);
+            sub(display,tr("Dalle native")+" : "+snapshot.optInt("panelWidth")+" × "+snapshot.optInt("panelHeight")+" ("+tr("Déclarée par l'utilisateur")+")");
+            sub(display,tr("Rendu Android")+" : "+snapshot.optInt("displayWidth")+" × "+snapshot.optInt("displayHeight")+"  •  "+snapshot.optDouble("refreshRateHz")+" Hz");
+        } else {
+            metric(display,snapshot.optInt("displayWidth")+" × "+snapshot.optInt("displayHeight"),TEXT);
+            sub(display,tr("Rendu Android")+"  •  "+snapshot.optDouble("refreshRateHz")+" Hz");
+            sub(display,tr("Dalle native")+" : "+tr("Non déterminée")+"  •  HDR : "+yes("displayHdrSupported"));
+        }
         place(line2,display);
-        LinearLayout net=panel("Réseau",GREEN);
+        LinearLayout net=panel("Réseau",GREEN);net.setMinimumHeight(dp(131));
         metric(net,v("network"),TEXT);
         sub(net,"IP locale : "+v("ipAddress"));
         sub(net,"Internet : "+(snapshot.optBoolean("internetValidated")?"actif":"non confirmé"));
         place(line2,net);
-        LinearLayout codecs=panel("Décodage multimédia",PURPLE);
+        LinearLayout codecs=panel("Décodage multimédia",PURPLE);codecs.setMinimumHeight(dp(131));
         metric(codecs,"H.264 "+flag("h264Decoder")+"   HEVC "+flag("hevcDecoder"),TEXT);
         sub(codecs,"AV1 "+flag("av1Decoder")+"   VP9 "+flag("vp9Decoder"));
         sub(codecs,snapshot.optInt("decoderCount")+" décodeurs déclarés par Android");
@@ -287,22 +339,22 @@ public final class MainActivity extends Activity {
     private void maintenance(){
         snapshot();
         title(page,"Maintenance","Outils intégrés, résultats mesurables et opérations à confirmer. Pas de booster fictif.");
-        LinearLayout first=row();page.addView(first,new LinearLayout.LayoutParams(-1,dp(151)));
-        LinearLayout normal=panel("NETTOYAGE STANDARD",GREEN);
+        LinearLayout first=row();page.addView(first,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout normal=panel("NETTOYAGE STANDARD",GREEN);normal.setMinimumHeight(dp(168));
         metric(normal,"Nettoyage sûr",TEXT);
         sub(normal,"Cache de Doctor : "+bytes(snapshot.optLong("ownCacheBytes")));
         gap(normal,6);
         Button clean=button("Nettoyer les fichiers temporaires");normal.addView(clean,new LinearLayout.LayoutParams(-1,dp(43)));
         clean.setOnClickListener(v->doClean());
         place(first,normal);
-        LinearLayout apps=panel("APPLICATIONS",CYAN);
+        LinearLayout apps=panel("APPLICATIONS",CYAN);apps.setMinimumHeight(dp(168));
         metric(apps,"Gérer depuis Doctor",TEXT);
         sub(apps,"Ouvrir, examiner et désinstaller une application.");
         gap(apps,6);
         Button show=button("Gestionnaire des applications");apps.addView(show,new LinearLayout.LayoutParams(-1,dp(43)));
         show.setOnClickListener(v->showPage(APPS));
         place(first,apps);
-        LinearLayout report=panel("RAPPORT ET DIAGNOSTIC",BLUE);
+        LinearLayout report=panel("RAPPORT ET DIAGNOSTIC",BLUE);report.setMinimumHeight(dp(168));
         metric(report,"Analyse détaillée",TEXT);
         sub(report,"CPU, Android, stockage, réseau, codecs, vidéo, audio.");
         gap(report,6);
@@ -310,6 +362,27 @@ public final class MainActivity extends Activity {
         export.setOnClickListener(v->shareReport());
         place(first,report);
 
+        gap(page,12);
+        LinearLayout perf=panel("MÉMOIRE ET PERFORMANCES",PURPLE);
+        LinearLayout perfLine=row();perf.addView(perfLine);
+        LinearLayout perfInfo=column();
+        perfLine.addView(perfInfo,new LinearLayout.LayoutParams(0,-2,1));
+        metric(perfInfo,bytes(snapshot.optLong("ramAvailable"))+" libres",TEXT);
+        sub(perfInfo,"Android gère déjà la RAM en cache. La libération des processus secondaires n'est pas garantie et peut ralentir leur prochain lancement.");
+        Button free=rootButton("Libérer la RAM inutilisée");
+        LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(235),dp(46));fp.leftMargin=dp(14);
+        perfLine.addView(free,fp);
+        free.setOnClickListener(v->rootAction("Libérer de la RAM",
+            "Arrête uniquement les processus Android considérés comme secondaires (am kill-all). Des applications peuvent être relancées automatiquement.",
+            ()->{
+                long before=DoctorSnapshot.collect(this).optLong("ramAvailable");
+                DoctorRoot.Result result=DoctorRoot.releaseBackgroundRam();
+                android.os.SystemClock.sleep(1200);
+                long after=DoctorSnapshot.collect(this).optLong("ramAvailable");
+                String diff=(after-before>=0?"+":"")+bytes(Math.abs(after-before));
+                return new DoctorRoot.Result(result.success,result.output+"\\nRAM libre avant : "+bytes(before)+"\\nRAM libre après : "+bytes(after)+"\\nVariation en valeur absolue : "+diff);
+            },()->showPage(CLEAN)));
+        page.addView(perf,new LinearLayout.LayoutParams(-1,-2));
         gap(page,12);
         LinearLayout headline=row();
         TextView h=label("Outils avancés",19,TEXT,true);headline.addView(h);
@@ -319,28 +392,161 @@ public final class MainActivity extends Activity {
         page.addView(headline);
         sub(page,"Ces commandes n'apparaissent que dans Doctor et nécessitent une validation explicite. Elles ne modifient pas les fichiers personnels.");
         gap(page,9);
-        LinearLayout advanced=row();page.addView(advanced,new LinearLayout.LayoutParams(-1,dp(163)));
-        LinearLayout test=panel("ACCÈS PRIVILÉGIÉ",ORANGE);
+        LinearLayout advanced=row();page.addView(advanced,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout test=panel("ACCÈS PRIVILÉGIÉ",ORANGE);test.setMinimumHeight(dp(173));
         badge(test);gap(test,5);
         sub(test,"Détecte et demande l'autorisation auprès de ton gestionnaire ROOT (ex. Magisk).");
         gap(test,8);
         Button verify=button("Vérifier les droits ROOT");test.addView(verify,new LinearLayout.LayoutParams(-1,dp(42)));
         verify.setOnClickListener(v->checkRoot(rootStatus));
         place(advanced,test);
-        LinearLayout cache=panel("CACHES ANDROID",ORANGE);
+        LinearLayout cache=panel("CACHES ANDROID",ORANGE);cache.setMinimumHeight(dp(173));
         badge(cache);gap(cache,5);
         sub(cache,"Demande au gestionnaire de paquets Android de purger les caches récupérables, sans effacer les données.");
         gap(cache,8);
         Button trim=rootButton("Purger les caches système");cache.addView(trim,new LinearLayout.LayoutParams(-1,dp(42)));
         trim.setOnClickListener(v->rootAction("Purger les caches Android","Commande : pm trim-caches 16G. Le gain dépend de l'espace récupérable ; certains caches seront reconstruits.",DoctorRoot::trimCaches,()->showPage(CLEAN)));
         place(advanced,cache);
-        LinearLayout stop=panel("CONTRÔLE D'APPLICATIONS",ORANGE);
+        LinearLayout stop=panel("CONTRÔLE D'APPLICATIONS",ORANGE);stop.setMinimumHeight(dp(173));
         badge(stop);gap(stop,5);
         sub(stop,"Arrêter ou geler une application utilisateur. Bouton de réactivation prévu pour les apps gelées.");
         gap(stop,8);
         Button manage=button("Choisir une application");stop.addView(manage,new LinearLayout.LayoutParams(-1,dp(42)));
         manage.setOnClickListener(v->showPage(APPS));
         place(advanced,stop);
+    }
+    private void fileManager(){
+        snapshot();
+        title(page,"Gestionnaire de fichiers et nettoyage",
+            "Navigue dans les dossiers que tu autorises. Suppression à l'unité avec confirmation ; aucun effacement automatique.");
+        LinearLayout intro=panel("Stockage",GREEN);
+        metric(intro,bytes(snapshot.optLong("storageAvailable"))+" libres",TEXT);
+        sub(intro,bytes(snapshot.optLong("storageTotal"))+" de capacité totale · Android 11 protège certains dossiers");
+        page.addView(intro,new LinearLayout.LayoutParams(-1,-2));
+        gap(page,8);
+        LinearLayout actions=row();page.addView(actions,new LinearLayout.LayoutParams(-1,dp(46)));
+        navButton(actions,"Choisir un dossier",()->chooseFolder());
+        navButton(actions,"Dossier parent",()->goParentFolder());
+        navButton(actions,largestFirst?"Trier par nom":"Trier par taille",()->{largestFirst=!largestFirst;showPage(FILES);});
+        gap(page,8);
+        filePath=label("Dossier autorisé",13,CYAN,true);page.addView(filePath);
+        gap(page,4);
+        fileStatus=label("Chargement…",11,MUTED,false);page.addView(fileStatus);
+        fileRows=column();gap(page,7);page.addView(fileRows);
+        String saved=prefs.getString("folder_uri",null);
+        if(saved==null){
+            fileStatus.setText("Aucun dossier autorisé. Sélectionne un dossier accessible à partir du bouton ci-dessus.");
+            return;
+        }
+        selectedTree=Uri.parse(saved);
+        if(currentFolderId==null)currentFolderId=DocumentsContract.getTreeDocumentId(selectedTree);
+        reloadFiles();
+    }
+    private void chooseFolder(){
+        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try{startActivityForResult(intent,FOLDER_PICKER);}
+        catch(ActivityNotFoundException e){toast("Aucun sélecteur de dossiers n'est disponible sur cette TV. Android exige une autorisation pour accéder aux fichiers personnels.");}
+        catch(Exception e){toast("Le sélecteur de dossiers est indisponible sur cet appareil.");}
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode!=FOLDER_PICKER||resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+        Uri uri=data.getData();
+        try{
+            int flags=data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getContentResolver().takePersistableUriPermission(uri,flags);
+            prefs.edit().putString("folder_uri",uri.toString()).apply();
+            selectedTree=uri;
+            currentFolderId=DocumentsContract.getTreeDocumentId(uri);
+            folderHistory.clear();
+            showPage(FILES);
+        }catch(Exception e){toast("Impossible d'autoriser ce dossier : "+e.getMessage());}
+    }
+    private void goParentFolder(){
+        if(folderHistory.isEmpty()){
+            toast("Tu es déjà à la racine du dossier autorisé.");
+            return;
+        }
+        currentFolderId=folderHistory.pop();
+        reloadFiles();
+    }
+    private void reloadFiles(){
+        if(currentPage!=FILES || selectedTree==null || fileRows==null)return;
+        final Uri tree=selectedTree;
+        final String id=currentFolderId;
+        if(fileStatus!=null)fileStatus.setText("Lecture du dossier…");
+        fileRows.removeAllViews();
+        new Thread(()->{
+            try{
+                List<DoctorFiles.Entry> items=DoctorFiles.list(this,tree,id);
+                if(!largestFirst)items.sort((a,b)->{
+                    if(a.directory!=b.directory)return a.directory?-1:1;
+                    return a.name.compareToIgnoreCase(b.name);
+                });
+                long sum=0;int files=0;
+                for(DoctorFiles.Entry e:items)if(!e.directory&&e.size>0){sum+=e.size;files++;}
+                final long shownBytes=sum;final int shownFiles=files;
+                handler.post(()->{
+                    if(currentPage!=FILES||!id.equals(currentFolderId))return;
+                    filePath.setText(tr("Dossier autorisé")+" / "+(folderHistory.isEmpty()?"":folderHistory.size()+" sous-dossier(s)"));
+                    fileStatus.setText(items.size()+" éléments visibles · "+shownFiles+" fichiers · "+bytes(shownBytes)+" de tailles de fichiers connues");
+                    fileRows.removeAllViews();
+                    if(items.isEmpty()){fileRows.addView(label("Dossier vide.",14,MUTED,false));return;}
+                    for(DoctorFiles.Entry entry:items)addFileRow(entry);
+                    if(items.size()>=500)fileRows.addView(label("Liste limitée aux 500 premiers éléments pour la fluidité de la TV.",11,ORANGE,false));
+                });
+            }catch(Exception e){handler.post(()->{
+                if(currentPage==FILES&&fileStatus!=null)fileStatus.setText("Lecture impossible : "+e.getMessage());
+            });}
+        },"doctor-files-list").start();
+    }
+    private void addFileRow(DoctorFiles.Entry entry){
+        LinearLayout item=row();
+        item.setPadding(dp(12),dp(4),dp(12),dp(4));
+        item.setBackground(surface(new int[]{0xff14233c,0xff101b30},0xff2b3f5d,12));
+        LinearLayout details=column();
+        item.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+        TextView name=label((entry.directory?"▣  ":"◻  ")+entry.name,14,TEXT,true);
+        name.setMaxLines(2);details.addView(name);
+        sub(details,entry.directory?tr("Dossier"):(entry.size>=0?bytes(entry.size):tr("Fichier")));
+        Button open=button(entry.directory?"Ouvrir":"Voir");
+        item.addView(open,new LinearLayout.LayoutParams(dp(115),dp(41)));
+        open.setOnClickListener(v->{
+            if(entry.directory){folderHistory.push(currentFolderId);currentFolderId=entry.id;reloadFiles();}
+            else try{
+                Intent intent=new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(DoctorFiles.document(selectedTree,entry.id),entry.mime==null?"*/*":entry.mime);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(intent,"Ouvrir un fichier"));
+            }catch(Exception e){toast("Aucune application disponible pour ouvrir ce fichier.");}
+        });
+        if(entry.canDelete){
+            Button remove=button("Supprimer");
+            LinearLayout.LayoutParams del=new LinearLayout.LayoutParams(dp(120),dp(41));del.leftMargin=dp(7);
+            item.addView(remove,del);remove.setTextColor(ORANGE);
+            remove.setOnClickListener(v->confirm(entry.directory?"Supprimer le dossier":"Supprimer le fichier",
+                "Supprimer définitivement « "+entry.name+" » ?"+(entry.directory?" Le dossier et son contenu peuvent être supprimés.":"")+" Cette opération est irréversible.",
+                ()->{
+                    String rootId=DocumentsContract.getTreeDocumentId(selectedTree);
+                    final Uri tree=selectedTree;
+                    new Thread(()->{
+                        boolean done=false;
+                        try{done=DoctorFiles.delete(this,tree,rootId,entry);}catch(Exception ignored){}
+                        final boolean ok=done;
+                        handler.post(()->{
+                            toast(ok?"Suppression effectuée.":"Impossible de supprimer ce fichier ou dossier.");
+                            reloadFiles();
+                        });
+                    },"doctor-delete-file").start();
+                }));
+        }
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(6);
+        fileRows.addView(item,lp);
+    }
+    @Override public void onBackPressed(){
+        if(currentPage==FILES&&!folderHistory.isEmpty()){goParentFolder();return;}
+        super.onBackPressed();
     }
     private void shareReport(){
         snapshot();
@@ -471,7 +677,13 @@ public final class MainActivity extends Activity {
         field(video,"Mode Android actif",snapshot.optInt("activeModeWidth")+" × "+snapshot.optInt("activeModeHeight"));
         field(video,"Fréquence",v("refreshRateHz")+" Hz");
         field(video,"Mode max exposé",snapshot.optInt("maxExposedModeWidth")+" × "+snapshot.optInt("maxExposedModeHeight"));
-        field(video,"Dalle native","Inconnue : Android ne l'expose pas nécessairement");
+        field(video,tr("Dalle native"),snapshot.optInt("panelWidth")>0?
+            snapshot.optInt("panelWidth")+" × "+snapshot.optInt("panelHeight")+" ("+tr("Déclarée par l'utilisateur")+")":
+            tr("Non déterminée")+" — interface Android ≠ dalle native");
+        Button displayChoice=button("Définir la résolution de dalle");
+        LinearLayout.LayoutParams displayLp=new LinearLayout.LayoutParams(-1,dp(43));
+        displayLp.topMargin=dp(8);video.addView(displayChoice,displayLp);
+        displayChoice.setOnClickListener(v->choosePanelResolution());
         field(video,"HDR API",yes("displayHdrSupported"));
         field(video,"Sorties audio",String.valueOf(snapshot.opt("audioOutputs")));
         row2.addView(video,new LinearLayout.LayoutParams(0,-2,1));
