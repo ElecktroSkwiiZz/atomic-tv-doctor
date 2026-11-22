@@ -10,6 +10,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -80,6 +81,18 @@ public final class MainActivity extends Activity {
         b.setText(title);b.setAllCaps(false);b.setTextSize(13);
         b.setTextColor(TEXT);b.setMinHeight(0);b.setMinimumHeight(0);
         padding(b,7,0);focus(b);return b;
+    }
+    private Button rootButton(String title){
+        Button b=button(title);
+        Drawable icon=getDrawable(R.drawable.ic_root_required);
+        if(icon!=null){
+            icon.setBounds(0,0,dp(17),dp(17));
+            b.setCompoundDrawables(icon,null,null,null);
+            b.setCompoundDrawablePadding(dp(3));
+        }
+        b.setTextColor(ORANGE);
+        b.setContentDescription("ROOT requis : "+title);
+        return b;
     }
     private void gap(LinearLayout l,int h){View v=new View(this);l.addView(v,new LinearLayout.LayoutParams(1,dp(h)));}
     private void title(LinearLayout parent,String headline,String description){
@@ -318,7 +331,7 @@ public final class MainActivity extends Activity {
         badge(cache);gap(cache,5);
         sub(cache,"Demande au gestionnaire de paquets Android de purger les caches récupérables, sans effacer les données.");
         gap(cache,8);
-        Button trim=button("Purger les caches système");cache.addView(trim,new LinearLayout.LayoutParams(-1,dp(42)));
+        Button trim=rootButton("Purger les caches système");cache.addView(trim,new LinearLayout.LayoutParams(-1,dp(42)));
         trim.setOnClickListener(v->rootAction("Purger les caches Android","Commande : pm trim-caches 16G. Le gain dépend de l'espace récupérable ; certains caches seront reconstruits.",DoctorRoot::trimCaches,()->showPage(CLEAN)));
         place(advanced,cache);
         LinearLayout stop=panel("CONTRÔLE D'APPLICATIONS",ORANGE);
@@ -353,7 +366,7 @@ public final class MainActivity extends Activity {
         if(!frozen.isEmpty()){
             LinearLayout frozenCard=panel("APPLICATIONS GELÉES — RÉACTIVATION",ORANGE);
             for(String pkg:new HashSet<>(frozen)){
-                Button restore=button("ROOT requis  •  Réactiver "+pkg);
+                Button restore=rootButton("Réactiver "+pkg);
                 LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(40));p.topMargin=dp(6);
                 frozenCard.addView(restore,p);
                 restore.setOnClickListener(v->rootAction("Réactiver "+pkg,"Cette opération restaure l'application gelée.",()->DoctorRoot.unfreeze(pkg),()->{
@@ -399,11 +412,11 @@ public final class MainActivity extends Activity {
                     try{Intent i=new Intent(Intent.ACTION_DELETE,Uri.parse("package:"+entry.pkg));startActivity(i);}
                     catch(Exception e){toast("Désinstallation impossible sur cette TV.");}
                 }));
-                Button stop=button("ROOT · Arrêter");
+                Button stop=rootButton("Arrêter");
                 LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(dp(122),dp(41));sp.leftMargin=dp(7);
                 item.addView(stop,sp);stop.setTextColor(ORANGE);
                 stop.setOnClickListener(v->rootAction("Arrêter "+entry.label,"Force-stop d'une application utilisateur. Les tâches en cours seront interrompues.",()->DoctorRoot.forceStop(this,entry.pkg),null));
-                Button freeze=button("ROOT · Geler");
+                Button freeze=rootButton("Geler");
                 LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(110),dp(41));fp.leftMargin=dp(7);
                 item.addView(freeze,fp);freeze.setTextColor(ORANGE);
                 freeze.setOnClickListener(v->rootAction("Geler "+entry.label,"L'application sera désactivée pour l'utilisateur 0. Ne l'utilise pas sur des services importants.",()->DoctorRoot.freeze(this,entry.pkg),()->{
