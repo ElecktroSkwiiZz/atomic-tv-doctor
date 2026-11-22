@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>ATOMIC TV Doctor · Diagnostic</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/doctor.css" /></head>
+<body>
+<div class="shell">
+<header class="top"><div class="logo"><img src="/favicon.svg" alt=""><div><span class="brand">JB ATOMIC INDUSTRIES</span><strong>ATOMIC <em>TV Doctor</em></strong></div></div><span class="pill" id="state">Connexion…</span></header>
+<main>
+<div class="intro"><div><div class="eyebrow">DIAGNOSTIC / ANDROID TV</div><h1>État de votre <span>appareil.</span></h1><p>Informations collectées localement. Aucun compte ni service cloud nécessaire.</p></div><button id="refresh">↻ Actualiser</button></div>
+<div class="grid">
+<section class="card hero"><div class="card-label">APPAREIL</div><h2 id="device">—</h2><p id="android">—</p><div class="stats"><span>CPU <b id="cpu">—</b></span><span>Matériel <b id="hardware">—</b></span><span>Uptime <b id="uptime">—</b></span></div></section>
+<section class="card"><div class="card-label">MÉMOIRE RAM</div><div class="big" id="ram">—</div><p id="ramTotal">—</p><div class="meter"><div id="ramMeter"></div></div></section>
+<section class="card"><div class="card-label">STOCKAGE INTERNE</div><div class="big" id="storage">—</div><p id="storageTotal">—</p><div class="meter"><div id="storageMeter"></div></div></section>
+<section class="card"><div class="card-label">CONNEXION</div><div class="big" id="network">—</div><p id="connectivity">—</p></section>
+<section class="card"><div class="card-label">DÉCODEURS VIDÉO</div><div class="codecs"><span>H.264 <b id="h264">—</b></span><span>HEVC <b id="hevc">—</b></span><span>AV1 <b id="av1">—</b></span></div><p id="decoderCount">—</p></section>
+<section class="card"><div class="card-label">APPLICATION</div><div class="big" id="version">—</div><p>ATOMIC TV Doctor · version installée</p><button id="export">Exporter le rapport JSON</button></section>
+</div>
+<div class="note"><b>Accès privé :</b> seul un appareil possédant l'URL complète affichée sur votre TV peut consulter ce diagnostic. Le portail utilise HTTP sur le réseau local : évitez les réseaux publics.</div>
+</main><footer>© JB Atomic Industries · <a href="https://jbatomic.com/" target="_blank" rel="noopener noreferrer">jbatomic.com</a></footer>
+</div><script src="/doctor.js" defer></script></body></html>
