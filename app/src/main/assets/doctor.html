@@ -14,6 +14,13 @@
 <section class="card"><div class="card-label">DÉCODEURS VIDÉO</div><div class="codecs"><span>H.264 <b id="h264">—</b></span><span>HEVC <b id="hevc">—</b></span><span>AV1 <b id="av1">—</b></span></div><p id="decoderCount">—</p></section>
 <section class="card"><div class="card-label">APPLICATION</div><div class="big" id="version">—</div><p>ATOMIC TV Doctor · version installée</p><button id="export">Exporter le rapport JSON</button></section>
 </div>
+<section class="technical card"><div class="card-label">FICHE TECHNIQUE COMPLÈTE</div>
+<div class="techgrid" id="techDetails"></div></section>
+<section class="technical card"><div class="card-label">ENTRETIEN & OUTILS</div>
+<div class="maintenance-row"><div><h2>Fichiers temporaires</h2><p id="cacheSize">Calcul…</p><p>Nettoie uniquement le cache de TV Doctor, sans effacer les autres applications.</p></div>
+<button id="cleanOwnCache">Nettoyer mon cache</button></div><p id="cleanResult" role="status"></p>
+<p>Pour désinstaller ou gérer les caches d'autres applications, ouvre l'onglet Maintenance sur la TV : Android impose une confirmation ou des privilèges spécifiques.</p>
+</section>
 <div class="note"><b>Accès privé :</b> seul un appareil possédant l'URL complète affichée sur votre TV peut consulter ce diagnostic. Le portail utilise HTTP sur le réseau local : évitez les réseaux publics.</div>
 </main><footer>© JB Atomic Industries · <a href="https://jbatomic.com/" target="_blank" rel="noopener noreferrer">jbatomic.com</a></footer>
 </div><script src="/doctor.js" defer></script></body></html>

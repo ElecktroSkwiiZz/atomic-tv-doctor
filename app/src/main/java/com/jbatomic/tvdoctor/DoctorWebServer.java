@@ -70,9 +70,16 @@ public final class DoctorWebServer {
             String[] lines=request.split("\r\n");
             if(lines.length==0) {send(out,400,"text/plain","Bad request");return;}
             String[] first=lines[0].split(" ");
-            if(first.length!=3 || !"GET".equals(first[0])) {send(out,405,"text/plain","GET only");return;}
+            if(first.length!=3 || (!"GET".equals(first[0]) && !"POST".equals(first[0]))) {send(out,405,"text/plain","GET or POST only");return;}
             String host="";
-            for(String line:lines) if(line.toLowerCase(Locale.US).startsWith("host:")) host=line.substring(5).trim();
+            String origin="";
+            String requestedAction="";
+            for(String line:lines) {
+                String low=line.toLowerCase(Locale.US);
+                if(low.startsWith("host:"))host=line.substring(5).trim();
+                else if(low.startsWith("origin:"))origin=line.substring(7).trim();
+                else if(low.startsWith("x-atomic-action:"))requestedAction=line.substring(16).trim();
+            }
             // Reject non-IP literal Host headers to mitigate browser DNS rebinding.
             if(!validHost(host)) {send(out,403,"text/plain","Invalid host");return;}
             URI url;
@@ -90,6 +97,13 @@ public final class DoctorWebServer {
             if(currentToken==null || !constantEqual(currentToken,provided)) {
                 send(out,403,"text/html; charset=utf-8","<h1>Access denied</h1><p>Use the private URL shown on your TV.</p>");return;
             }
+            if(path.equals("/api/clean-cache") && "POST".equals(first[0])) {
+                String expectedOrigin="http://"+host;
+                if(!expectedOrigin.equalsIgnoreCase(origin)||!"clean-own-cache".equals(requestedAction)) {send(out,403,"text/plain","Action forbidden");return;}
+                long bytes=DoctorMaintenance.clearOwnCache(context);
+                send(out,200,"application/json; charset=utf-8","{\\"cleanedBytes\\":"+bytes+"}");return;
+            }
+            if(!"GET".equals(first[0])){send(out,405,"text/plain","Only GET for this route");return;}
             if(path.equals("/api/status")) {
                 send(out,200,"application/json; charset=utf-8",DoctorSnapshot.collect(context).toString());return;
             }
