@@ -87,6 +87,27 @@ public final class DoctorSnapshot {
             Display disp=((WindowManager)context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
             Point p=new Point();disp.getRealSize(p);
             put(o,"displayWidth",p.x);put(o,"displayHeight",p.y);
+            // Android's window/rendering resolution is NOT necessarily the native panel resolution.
+            put(o,"displayResolutionKind","Surface de rendu Android, pas résolution native de dalle");
+            Display.Mode active=disp.getMode();
+            put(o,"activeModeWidth",active.getPhysicalWidth());
+            put(o,"activeModeHeight",active.getPhysicalHeight());
+            int modeMaxWidth=0,modeMaxHeight=0;
+            JSONArray modes=new JSONArray();
+            for(Display.Mode mode:disp.getSupportedModes()){
+                JSONObject item=new JSONObject();
+                put(item,"width",mode.getPhysicalWidth());
+                put(item,"height",mode.getPhysicalHeight());
+                put(item,"hz",Math.round(mode.getRefreshRate()*100)/100.0);
+                modes.put(item);
+                long pixels=(long)mode.getPhysicalWidth()*mode.getPhysicalHeight();
+                if(pixels>(long)modeMaxWidth*modeMaxHeight){modeMaxWidth=mode.getPhysicalWidth();modeMaxHeight=mode.getPhysicalHeight();}
+            }
+            put(o,"maxExposedModeWidth",modeMaxWidth);
+            put(o,"maxExposedModeHeight",modeMaxHeight);
+            put(o,"exposed4kMode",modeMaxWidth>=3840 && modeMaxHeight>=2160);
+            put(o,"nativePanelResolution","Non déterminable par l'API Android publique");
+            put(o,"supportedDisplayModes",modes);
             put(o,"refreshRateHz",Math.round(disp.getRefreshRate()*100)/100.0);
             put(o,"displayModes",disp.getSupportedModes().length);
             put(o,"displayHdrSupported",disp.getHdrCapabilities()!=null && disp.getHdrCapabilities().getSupportedHdrTypes().length>0);
