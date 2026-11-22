@@ -101,7 +101,7 @@ public final class DoctorWebServer {
                 String expectedOrigin="http://"+host;
                 if(!expectedOrigin.equalsIgnoreCase(origin)||!"clean-own-cache".equals(requestedAction)) {send(out,403,"text/plain","Action forbidden");return;}
                 long bytes=DoctorMaintenance.clearOwnCache(context);
-                send(out,200,"application/json; charset=utf-8","{\\"cleanedBytes\\":"+bytes+"}");return;
+                send(out,200,"application/json; charset=utf-8","{\"cleanedBytes\":"+bytes+"}");return;
             }
             if(!"GET".equals(first[0])){send(out,405,"text/plain","Only GET for this route");return;}
             if(path.equals("/api/status")) {
