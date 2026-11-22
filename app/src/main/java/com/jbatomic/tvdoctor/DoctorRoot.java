@@ -77,6 +77,10 @@ public final class DoctorRoot {
      * Uses Android package manager cache maintenance (not pm clear).
      * May free little or nothing; never deletes an application's user data.
      */
+    /** Stops only processes Android itself considers safely killable (cached/background). */
+    public static Result releaseBackgroundRam() {
+        return shell("am kill-all",15);
+    }
     public static Result trimCaches() {
         return shell("pm trim-caches 16G",35);
     }

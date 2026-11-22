@@ -34,6 +34,13 @@ public final class DoctorSnapshot {
     private static void put(JSONObject o,String key,Object value){try{o.put(key,value);}catch(Exception ignored){}}
     public static JSONObject collect(Context context){
         JSONObject o=new JSONObject();
+        android.content.SharedPreferences prefs=context.getSharedPreferences("doctor",Context.MODE_PRIVATE);
+        put(o,"uiLanguage",prefs.getString("language","fr"));
+        String panel=prefs.getString("panel_resolution","auto");
+        int panelWidth="4k".equals(panel)?3840:"1080p".equals(panel)?1920:0;
+        int panelHeight="4k".equals(panel)?2160:"1080p".equals(panel)?1080:0;
+        put(o,"panelWidth",panelWidth);put(o,"panelHeight",panelHeight);
+        put(o,"panelResolutionSource",panelWidth>0?"user":"unknown");
         put(o,"appVersion",BuildConfig.VERSION_NAME);
         put(o,"collectedAt",System.currentTimeMillis());
         put(o,"brand",Build.BRAND);put(o,"manufacturer",Build.MANUFACTURER);
