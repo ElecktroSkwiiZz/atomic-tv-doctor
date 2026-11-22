@@ -101,6 +101,36 @@ public final class DoctorFiles {
         });
         return result;
     }
+    /** Bounded traversal: protects low-memory Android TVs from excessive filesystem scans. */
+    public static List<LocalEntry> largestFiles()throws Exception{
+        java.io.File root=sharedRoot();
+        java.util.ArrayDeque<java.io.File> queue=new java.util.ArrayDeque<>();
+        queue.add(root);
+        java.util.PriorityQueue<LocalEntry> top=new java.util.PriorityQueue<>(
+            40,java.util.Comparator.comparingLong(entry->entry.size));
+        int visited=0;
+        while(!queue.isEmpty()&&visited<4500){
+            java.io.File folder=queue.removeFirst();
+            java.io.File[] files=folder.listFiles();
+            if(files==null)continue;
+            for(java.io.File file:files){
+                if(++visited>4500)break;
+                try{
+                    java.io.File safe=publicFolder(file);
+                    if(safe.isDirectory()){
+                        if(queue.size()<1200)queue.addLast(safe);
+                    }else if(safe.isFile()&&safe.length()>0){
+                        LocalEntry entry=new LocalEntry(safe);
+                        if(top.size()<35)top.offer(entry);
+                        else if(entry.size>top.peek().size){top.poll();top.offer(entry);}
+                    }
+                }catch(Exception ignored){}
+            }
+        }
+        ArrayList<LocalEntry> result=new ArrayList<>(top);
+        result.sort((a,b)->Long.compare(b.size,a.size));
+        return result;
+    }
     /** Only individual files and empty folders can be deleted. Never recursively delete. */
     public static boolean deleteLocal(java.io.File selected)throws Exception{
         java.io.File file=publicFolder(selected);
