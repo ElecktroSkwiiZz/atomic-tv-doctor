@@ -2,74 +2,140 @@ package com.jbatomic.tvdoctor;
 
 import android.app.ActivityManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Point;
+import android.hardware.display.DisplayManager;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
+import android.media.MediaCodecInfo;
+import android.media.MediaCodecList;
 import android.net.ConnectivityManager;
+import android.net.LinkProperties;
+import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
 import android.os.SystemClock;
+import android.view.Display;
+import android.view.WindowManager;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.net.Inet4Address;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import java.util.Locale;
 
 public final class DoctorSnapshot {
     private DoctorSnapshot() {}
-
-    public static JSONObject collect(Context context) {
-        JSONObject obj = new JSONObject();
-        try {
-            obj.put("brand", Build.BRAND);
-            obj.put("manufacturer", Build.MANUFACTURER);
-            obj.put("model", Build.MODEL);
-            obj.put("device", Build.DEVICE);
-            obj.put("android", Build.VERSION.RELEASE);
-            obj.put("sdk", Build.VERSION.SDK_INT);
-            obj.put("hardware", Build.HARDWARE);
-            obj.put("soc", Build.VERSION.SDK_INT >= 31 ? Build.SOC_MODEL : "Unavailable");
-            obj.put("uptimeSeconds", SystemClock.elapsedRealtime() / 1000);
-            obj.put("appVersion", BuildConfig.VERSION_NAME);
-            obj.put("cpuCores", Runtime.getRuntime().availableProcessors());
-            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
-            ActivityManager.MemoryInfo mem = new ActivityManager.MemoryInfo();
-            am.getMemoryInfo(mem);
-            obj.put("ramTotal", mem.totalMem);
-            obj.put("ramAvailable", mem.availMem);
-            obj.put("ramLow", mem.lowMemory);
-            File data = Environment.getDataDirectory();
-            StatFs stat = new StatFs(data.getAbsolutePath());
-            obj.put("storageTotal", stat.getTotalBytes());
-            obj.put("storageAvailable", stat.getAvailableBytes());
-            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-            NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
-            obj.put("network", nc == null ? "Offline" : nc.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ? "Ethernet" : nc.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ? "Wi-Fi" : nc.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ? "Cellular" : "Other");
-            obj.put("internetValidated", nc != null && nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
-            android.media.MediaCodecList codecs = new android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS);
-            int count = 0;
-            boolean av1 = false, hevc = false, avc = false;
-            for(android.media.MediaCodecInfo codec : codecs.getCodecInfos()) {
-                if (codec.isEncoder()) continue;
-                count++;
-                for(String type : codec.getSupportedTypes()) {
-                    if(type.equalsIgnoreCase("video/av01")) av1 = true;
-                    if(type.equalsIgnoreCase("video/hevc")) hevc = true;
-                    if(type.equalsIgnoreCase("video/avc")) avc = true;
+    private static void put(JSONObject o,String key,Object value){try{o.put(key,value);}catch(Exception ignored){}}
+    public static JSONObject collect(Context context){
+        JSONObject o=new JSONObject();
+        put(o,"appVersion",BuildConfig.VERSION_NAME);
+        put(o,"collectedAt",System.currentTimeMillis());
+        put(o,"brand",Build.BRAND);put(o,"manufacturer",Build.MANUFACTURER);
+        put(o,"model",Build.MODEL);put(o,"device",Build.DEVICE);
+        put(o,"product",Build.PRODUCT);put(o,"board",Build.BOARD);
+        put(o,"hardware",Build.HARDWARE);put(o,"fingerprint",Build.FINGERPRINT);
+        put(o,"buildId",Build.ID);put(o,"buildType",Build.TYPE);
+        put(o,"android",Build.VERSION.RELEASE);put(o,"sdk",Build.VERSION.SDK_INT);
+        put(o,"securityPatch",Build.VERSION.SECURITY_PATCH);
+        put(o,"soc",Build.VERSION.SDK_INT>=31?Build.SOC_MODEL:"Non exposé");
+        put(o,"abis",new JSONArray(Build.SUPPORTED_ABIS));
+        put(o,"cpuCores",Runtime.getRuntime().availableProcessors());
+        put(o,"uptimeSeconds",SystemClock.elapsedRealtime()/1000);
+        put(o,"isTelevision",(context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK)==Configuration.UI_MODE_TYPE_TELEVISION);
+        try{
+            ActivityManager am=(ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo m=new ActivityManager.MemoryInfo();am.getMemoryInfo(m);
+            put(o,"ramTotal",m.totalMem);put(o,"ramAvailable",m.availMem);
+            put(o,"ramThreshold",m.threshold);put(o,"ramLow",m.lowMemory);
+            put(o,"memoryClassMb",am.getMemoryClass());
+        }catch(Exception e){put(o,"ramError",e.getMessage());}
+        try{
+            StatFs s=new StatFs(Environment.getDataDirectory().getAbsolutePath());
+            put(o,"storageTotal",s.getTotalBytes());put(o,"storageAvailable",s.getAvailableBytes());
+            put(o,"storageUsed",s.getTotalBytes()-s.getAvailableBytes());
+            put(o,"ownCacheBytes",folderSize(context.getCacheDir())+folderSize(context.getExternalCacheDir()));
+        }catch(Exception e){put(o,"storageError",e.getMessage());}
+        try{
+            ConnectivityManager cm=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            Network n=cm.getActiveNetwork();NetworkCapabilities c=cm.getNetworkCapabilities(n);
+            String kind=c==null?"Hors ligne":c.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)?"Ethernet":c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)?"Wi-Fi":c.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)?"Mobile":"Autre";
+            put(o,"network",kind);
+            put(o,"internetValidated",c!=null&&c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+            if(c!=null){put(o,"downKbps",c.getLinkDownstreamBandwidthKbps());put(o,"upKbps",c.getLinkUpstreamBandwidthKbps());}
+            LinkProperties links=cm.getLinkProperties(n);
+            if(links!=null){put(o,"dnsCount",links.getDnsServers().size());put(o,"interfaceName",links.getInterfaceName());}
+            Enumeration<NetworkInterface> interfaces=NetworkInterface.getNetworkInterfaces();
+            while(interfaces.hasMoreElements()){
+                NetworkInterface iface=interfaces.nextElement();
+                if(!iface.isUp()||iface.isLoopback())continue;
+                Enumeration<java.net.InetAddress> addrs=iface.getInetAddresses();
+                while(addrs.hasMoreElements()){
+                    java.net.InetAddress ip=addrs.nextElement();
+                    if(ip instanceof Inet4Address&&ip.isSiteLocalAddress()){
+                        put(o,"ipAddress",ip.getHostAddress());put(o,"macAddress","Masquée par Android");break;
+                    }
                 }
             }
-            obj.put("decoderCount", count);
-            obj.put("av1Decoder", av1);
-            obj.put("hevcDecoder", hevc);
-            obj.put("h264Decoder", avc);
-            obj.put("collectedAt", System.currentTimeMillis());
-        } catch (Exception e) { try {obj.put("error", e.toString());} catch(Exception ignored) {} }
-        return obj;
+        }catch(Exception e){put(o,"networkError",e.getMessage());}
+        try{
+            Display disp=((WindowManager)context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+            Point p=new Point();disp.getRealSize(p);
+            put(o,"displayWidth",p.x);put(o,"displayHeight",p.y);
+            put(o,"refreshRateHz",Math.round(disp.getRefreshRate()*100)/100.0);
+            put(o,"displayModes",disp.getSupportedModes().length);
+            put(o,"displayHdrSupported",disp.getHdrCapabilities()!=null && disp.getHdrCapabilities().getSupportedHdrTypes().length>0);
+        }catch(Exception e){put(o,"displayError",e.getMessage());}
+        try{
+            AudioManager audio=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+            put(o,"audioOutputCount",audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).length);
+            JSONArray devices=new JSONArray();
+            for(AudioDeviceInfo d:audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS))devices.put(d.getProductName().toString()+" · type "+d.getType());
+            put(o,"audioOutputs",devices);
+        }catch(Exception e){put(o,"audioError",e.getMessage());}
+        try{
+            MediaCodecList list=new MediaCodecList(MediaCodecList.REGULAR_CODECS);
+            int count=0;boolean av1=false,hevc=false,avc=false,vp9=false;
+            JSONArray codecNames=new JSONArray();
+            for(MediaCodecInfo codec:list.getCodecInfos()){
+                if(codec.isEncoder())continue;
+                count++;
+                for(String t:codec.getSupportedTypes()){
+                    if(t.equalsIgnoreCase("video/av01"))av1=true;
+                    if(t.equalsIgnoreCase("video/hevc"))hevc=true;
+                    if(t.equalsIgnoreCase("video/avc"))avc=true;
+                    if(t.equalsIgnoreCase("video/x-vnd.on2.vp9"))vp9=true;
+                }
+                if(codecNames.length()<25)codecNames.put(codec.getName());
+            }
+            put(o,"decoderCount",count);put(o,"h264Decoder",avc);
+            put(o,"hevcDecoder",hevc);put(o,"av1Decoder",av1);put(o,"vp9Decoder",vp9);
+            put(o,"codecNames",codecNames);
+        }catch(Exception e){put(o,"codecError",e.getMessage());}
+        try{
+            BatteryManager b=(BatteryManager)context.getSystemService(Context.BATTERY_SERVICE);
+            int pct=b.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            if(pct>=0&&pct<=100)put(o,"batteryPercent",pct);
+        }catch(Exception ignored){}
+        return o;
     }
-
-    public static String prettyBytes(long bytes) {
-        if (bytes <= 0) return "0 B";
-        String[] units = {"B", "KB", "MB", "GB", "TB"};
-        double n = bytes;
-        int unit = 0;
-        while(n >= 1024 && unit < units.length - 1) { n /= 1024.0; unit++; }
-        return String.format(Locale.US, "%.1f %s", n, units[unit]);
+    public static long folderSize(File f){
+        if(f==null||!f.exists())return 0;
+        if(f.isFile())return f.length();
+        long size=0;File[] children=f.listFiles();
+        if(children!=null)for(File item:children)size+=folderSize(item);
+        return size;
+    }
+    public static String prettyBytes(long bytes){
+        if(bytes<=0)return "0 B";
+        String[] units={"B","Ko","Mo","Go","To"};
+        double n=bytes;int i=0;
+        while(n>=1024&&i<units.length-1){n/=1024;i++;}
+        return String.format(Locale.FRANCE,"%.1f %s",n,units[i]);
     }
 }
