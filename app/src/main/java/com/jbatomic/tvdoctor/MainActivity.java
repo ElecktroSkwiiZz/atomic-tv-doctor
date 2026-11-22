@@ -78,7 +78,13 @@ public final class MainActivity extends Activity {
         root=vertical();root.setPadding(dp(22),dp(14),dp(22),dp(12));root.setBackgroundColor(BG);
         setContentView(root);
         LinearLayout header=row();
-        TextView title=text("◈  ATOMIC  TV Doctor",24,TEXT,true);
+        ImageView appLogo=new ImageView(this);
+        appLogo.setImageResource(com.jbatomic.tvdoctor.R.drawable.ic_doctor);
+        appLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoLp=new LinearLayout.LayoutParams(dp(43),dp(43));logoLp.rightMargin=dp(11);
+        header.addView(appLogo,logoLp);
+        TextView title=text("ATOMIC  TV Doctor",24,TEXT,true);
+        title.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(title,new LinearLayout.LayoutParams(0,dp(45),1));
         TextView version=text("JB ATOMIC INDUSTRIES    ·    v"+BuildConfig.VERSION_NAME,12,CYAN,true);
         header.addView(version);
