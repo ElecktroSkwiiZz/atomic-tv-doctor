@@ -1,0 +1,73 @@
+name: Android TV Doctor — build & release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Verify web client
+        run: |
+          node --check app/src/main/assets/doctor.js
+          test -s app/src/main/assets/doctor.html
+          test -s app/src/main/assets/doctor.css
+      - name: Build debug
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: gradle --no-daemon assembleDebug
+      - name: Save debug APK
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ATOMIC-TV-Doctor-DEBUG
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(sed -nE "s/.*versionName '([^']+)'.*/\1/p" app/build.gradle | head -1)
+          test "$GITHUB_REF_NAME" = "v$version"
+      - name: Restore release signing key
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          KEY: ${{ secrets.DOCTOR_KEYSTORE_BASE64 }}
+          STORE: ${{ secrets.DOCTOR_STORE_PASSWORD }}
+          PASS: ${{ secrets.DOCTOR_KEY_PASSWORD }}
+          ALIAS: ${{ secrets.DOCTOR_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY" && test -n "$STORE" && test -n "$PASS" && test -n "$ALIAS" || { echo "Signing secrets missing" >&2; exit 1; }
+          printf '%s' "$KEY" | base64 -d > "$RUNNER_TEMP/doctor.jks"
+          printf 'DOCTOR_KEYSTORE=%s\nDOCTOR_STORE_PASSWORD=%s\nDOCTOR_KEY_PASSWORD=%s\nDOCTOR_KEY_ALIAS=%s\n' "$RUNNER_TEMP/doctor.jks" "$STORE" "$PASS" "$ALIAS" >> gradle.properties
+      - name: Build signed release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gradle --no-daemon assembleRelease
+      - name: Publish signed release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk ATOMIC-TV-Doctor-AndroidTV.apk
+          gh release create "$GITHUB_REF_NAME" ATOMIC-TV-Doctor-AndroidTV.apk --title "ATOMIC TV Doctor $GITHUB_REF_NAME" --generate-notes
