@@ -107,6 +107,27 @@ public final class DoctorWebServer {
             if(path.equals("/api/apps")){
                 send(out,200,"application/json; charset=utf-8",DoctorApps.list(context).toString());return;
             }
+            if(path.equals("/api/files")){
+                org.json.JSONObject result=new org.json.JSONObject();
+                String saved=context.getSharedPreferences("doctor",Context.MODE_PRIVATE).getString("folder_uri",null);
+                try{
+                    if(saved==null){result.put("authorized",false);result.put("items",new org.json.JSONArray());}
+                    else{
+                        android.net.Uri folder=android.net.Uri.parse(saved);
+                        java.util.List<DoctorFiles.Entry> list=DoctorFiles.list(context,folder,android.provider.DocumentsContract.getTreeDocumentId(folder));
+                        org.json.JSONArray items=new org.json.JSONArray();
+                        for(DoctorFiles.Entry f:list){
+                            org.json.JSONObject item=new org.json.JSONObject();
+                            item.put("name",f.name);
+                            item.put("directory",f.directory);
+                            item.put("size",f.size);
+                            items.put(item);
+                        }
+                        result.put("authorized",true);result.put("items",items);
+                    }
+                }catch(Exception e){result.put("authorized",false);result.put("error","Accès au dossier indisponible");result.put("items",new org.json.JSONArray());}
+                send(out,200,"application/json; charset=utf-8",result.toString());return;
+            }
             if(path.equals("/api/status")) {
                 send(out,200,"application/json; charset=utf-8",DoctorSnapshot.collect(context).toString());return;
             }

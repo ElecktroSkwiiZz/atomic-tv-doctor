@@ -20,3 +20,6 @@ footer{display:flex;justify-content:space-between;gap:12px;border-top:1px solid 
 #language{border:1px solid #45738f;background:#152c43;color:#d8f8ff;border-radius:10px;padding:8px 12px;font-size:.8rem;font-weight:800}
 #language:focus-visible{outline:2px solid #46d6e8;outline-offset:2px}
 @media(max-width:640px){.header-tools{gap:7px}.language-label{display:none}#language{padding:7px;min-width:58px}.status{max-width:112px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}}
+
+.file-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:310px;overflow:auto;margin-top:14px}
+@media(max-width:640px){.file-list{grid-template-columns:1fr}}
