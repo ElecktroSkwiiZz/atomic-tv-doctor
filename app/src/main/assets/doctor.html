@@ -15,62 +15,62 @@
     <img src="/favicon.svg" width="46" height="46" alt="">
     <span><small>JB ATOMIC INDUSTRIES</small><strong>ATOMIC <em>TV Doctor</em></strong></span>
    </a>
-   <div class="status" id="state" role="status">Connexion au téléviseur…</div>
+   <div class="header-tools"><label class="language-label" for="language">Langue</label><select id="language" aria-label="Choix de langue"><option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option><option value="ru">RU</option></select><div class="status" id="state" role="status">Connexion au téléviseur…</div></div>
   </header>
   <main>
    <div class="hero">
-    <div><p class="eyebrow">CENTRE DE DIAGNOSTIC · ANDROID TV</p>
-     <h1>Vue d'ensemble <span>de votre TV.</span></h1>
-     <p class="summary">Diagnostic et entretien accessibles sur votre réseau local. Aucune donnée transmise au cloud.</p>
+    <div><p class="eyebrow" data-i18n="eyebrow">CENTRE DE DIAGNOSTIC · ANDROID TV</p>
+     <h1><span data-i18n="headline">Vue d'ensemble</span> <span data-i18n="headline2">de votre TV.</span></h1>
+     <p class="summary" data-i18n="summary">Diagnostic et entretien accessibles sur votre réseau local. Aucune donnée transmise au cloud.</p>
     </div>
     <div class="toolbar">
-     <button id="refresh" class="primary">↻ Actualiser</button>
-     <button id="export">↓ Exporter JSON</button>
+     <button id="refresh" class="primary" data-i18n="refresh">↻ Actualiser</button>
+     <button id="export" data-i18n="export">↓ Exporter JSON</button>
     </div>
    </div>
    <section class="stats-grid" aria-label="État du téléviseur">
-    <article class="panel hero-card accent-blue"><div class="label">APPAREIL</div>
+    <article class="panel hero-card accent-blue"><div class="label" data-i18n="device">APPAREIL</div>
       <h2 id="device">—</h2><p id="android">—</p>
       <div class="chips"><span>CPU <b id="cpu">—</b></span><span>SO​C <b id="hardware">—</b></span><span>Activité <b id="uptime">—</b></span></div>
     </article>
-    <article class="panel accent-purple"><div class="label">MÉMOIRE RAM</div>
+    <article class="panel accent-purple"><div class="label" data-i18n="memory">MÉMOIRE RAM</div>
       <div class="horizontal"><div class="donut purple" id="ramDonut"><span id="ramPercent">—</span></div>
       <div><strong class="metric" id="ram">—</strong><p id="ramTotal">—</p></div></div>
     </article>
-    <article class="panel accent-green"><div class="label">STOCKAGE INTERNE</div>
+    <article class="panel accent-green"><div class="label" data-i18n="storage">STOCKAGE INTERNE</div>
       <div class="horizontal"><div class="donut green" id="diskDonut"><span id="diskPercent">—</span></div>
       <div><strong class="metric" id="storage">—</strong><p id="storageTotal">—</p></div></div>
     </article>
-    <article class="panel accent-cyan"><div class="label">AFFICHAGE</div>
+    <article class="panel accent-cyan"><div class="label" data-i18n="display">AFFICHAGE</div>
       <strong class="metric" id="display">—</strong><p id="displayNote">Résolution de rendu Android, différente de la dalle native.</p>
       <p class="tag" id="displayModes">Modes Android en cours de lecture</p>
     </article>
-    <article class="panel accent-green"><div class="label">CONNEXION</div>
+    <article class="panel accent-green"><div class="label" data-i18n="network">CONNEXION</div>
       <strong class="metric" id="network">—</strong><p id="connectivity">—</p>
       <p class="tag" id="ip">—</p>
     </article>
-    <article class="panel accent-orange"><div class="label">DÉCODAGE VIDÉO</div>
+    <article class="panel accent-orange"><div class="label" data-i18n="codec">DÉCODAGE VIDÉO</div>
       <div class="codecs"><span>H.264 <b id="h264">—</b></span><span>HEVC <b id="hevc">—</b></span>
       <span>VP9 <b id="vp9">—</b></span><span>AV1 <b id="av1">—</b></span></div>
       <p id="decoderCount">—</p>
     </article>
    </section>
-   <div class="section-top"><h2>Informations techniques</h2><p>Valeurs Android contextualisées : octets convertis en Mo/Go, fréquences en Hz.</p></div>
+   <div class="section-top"><h2 data-i18n="technical">Informations techniques</h2><p>Valeurs Android contextualisées : octets convertis en Mo/Go, fréquences en Hz.</p></div>
    <section class="panel details"><div id="techDetails" class="techgrid"></div></section>
-   <div class="section-top"><h2>Applications détectées</h2><p>Inventaire en lecture seule. Gérer, désinstaller et utiliser ROOT directement depuis la TV.</p></div>
+   <div class="section-top"><h2 data-i18n="applications">Applications détectées</h2><p>Inventaire en lecture seule. Gérer, désinstaller et utiliser ROOT directement depuis la TV.</p></div>
    <section class="panel apps">
-    <div class="apps-head"><label for="appSearch">Rechercher une application</label><input type="search" id="appSearch" placeholder="Nom ou identifiant du paquet" autocomplete="off"><span id="appCount"></span></div>
+    <div class="apps-head"><label for="appSearch" data-i18n="search">Rechercher une application</label><input type="search" id="appSearch" placeholder="Nom ou identifiant du paquet" autocomplete="off"><span id="appCount"></span></div>
     <div id="appList" class="app-list"><p>Lecture de l'inventaire…</p></div>
    </section>
-   <div class="section-top"><h2>Maintenance et outils avancés</h2><p>Les opérations privilégiées nécessitent ROOT et une confirmation sur le téléviseur.</p></div>
+   <div class="section-top"><h2 data-i18n="maintenance">Maintenance et outils avancés</h2><p>Les opérations privilégiées nécessitent ROOT et une confirmation sur le téléviseur.</p></div>
    <section class="maintenance">
-    <article class="panel"><div class="label">NETTOYAGE STANDARD</div><h3>Cache de TV Doctor</h3>
+    <article class="panel"><div class="label" data-i18n="cleanup">NETTOYAGE STANDARD</div><h3 data-i18n="doctorCache">Cache de TV Doctor</h3>
      <p id="cacheSize">—</p><p>Supprime uniquement les fichiers temporaires de cette application.</p>
-     <button id="cleanOwnCache">Nettoyer le cache</button><p class="result" id="cleanResult" role="status"></p>
+     <button id="cleanOwnCache" data-i18n="cleanButton">Nettoyer le cache</button><p class="result" id="cleanResult" role="status"></p>
     </article>
     <article class="panel root-card">
-     <div class="root-badge"><svg width="23" height="23" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 7v10c0 6-5 11-12 13C9 28 4 23 4 17V7Z" fill="#2b1912" stroke="#ffb067" stroke-width="2"/><path d="M14 8h5v6h4v5h-4v5h-5v-5H9v-5h5z" fill="#ffb067"/></svg><strong>ROOT REQUIS</strong></div>
-     <h3>Maintenance avancée</h3><p>Purge des caches Android, arrêt forcé et gel réversible des applications utilisateur.</p>
+     <div class="root-badge"><svg width="23" height="23" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 7v10c0 6-5 11-12 13C9 28 4 23 4 17V7Z" fill="#2b1912" stroke="#ffb067" stroke-width="2"/><path d="M14 8h5v6h4v5h-4v5h-5v-5H9v-5h5z" fill="#ffb067"/></svg><strong data-i18n="root">ROOT REQUIS</strong></div>
+     <h3 data-i18n="advanced">Maintenance avancée</h3><p>Purge des caches Android, arrêt forcé et gel réversible des applications utilisateur.</p>
      <p class="warning">Autorisation ROOT et confirmation sur l'écran TV obligatoires. Aucune commande root n'est exposée sur le portail web.</p>
     </article>
    </section>

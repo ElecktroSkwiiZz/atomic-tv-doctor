@@ -2,6 +2,23 @@
 "use strict";
 const el=id=>document.getElementById(id);
 const token=new URLSearchParams(location.search).get("key");
+const translations={"fr":{"eyebrow":"CENTRE DE DIAGNOSTIC · ANDROID TV","headline":"Vue d'ensemble","headline2":"de votre TV.","summary":"Diagnostic et entretien accessibles sur votre réseau local. Aucune donnée transmise au cloud.","refresh":"↻ Actualiser","export":"↓ Exporter JSON","device":"APPAREIL","memory":"MÉMOIRE RAM","storage":"STOCKAGE INTERNE","display":"AFFICHAGE","network":"CONNEXION","codec":"DÉCODAGE VIDÉO","technical":"Informations techniques","applications":"Applications détectées","maintenance":"Maintenance et outils avancés","search":"Rechercher une application","cleanup":"NETTOYAGE STANDARD","doctorCache":"Cache de TV Doctor","cleanButton":"Nettoyer le cache","advanced":"Maintenance avancée","root":"ROOT REQUIS"},"en":{"eyebrow":"DIAGNOSTICS · ANDROID TV","headline":"Overview","headline2":"of your TV.","summary":"Diagnostics and maintenance on your local network. No cloud upload.","refresh":"↻ Refresh","export":"↓ Export JSON","device":"DEVICE","memory":"RAM MEMORY","storage":"INTERNAL STORAGE","display":"DISPLAY","network":"NETWORK","codec":"VIDEO DECODING","technical":"Technical details","applications":"Detected apps","maintenance":"Maintenance and advanced tools","search":"Find an application","cleanup":"STANDARD CLEANUP","doctorCache":"TV Doctor cache","cleanButton":"Clear cache","advanced":"Advanced maintenance","root":"ROOT REQUIRED"},"es":{"eyebrow":"DIAGNÓSTICO · ANDROID TV","headline":"Resumen","headline2":"de tu TV.","summary":"Diagnóstico y mantenimiento en la red local. Sin enviar datos a la nube.","refresh":"↻ Actualizar","export":"↓ Exportar JSON","device":"DISPOSITIVO","memory":"MEMORIA RAM","storage":"ALMACENAMIENTO","display":"PANTALLA","network":"RED","codec":"DECODIFICACIÓN DE VÍDEO","technical":"Detalles técnicos","applications":"Aplicaciones detectadas","maintenance":"Mantenimiento y herramientas","search":"Buscar una aplicación","cleanup":"LIMPIEZA ESTÁNDAR","doctorCache":"Caché de TV Doctor","cleanButton":"Limpiar caché","advanced":"Mantenimiento avanzado","root":"REQUIERE ROOT"},"ru":{"eyebrow":"ДИАГНОСТИКА · ANDROID TV","headline":"Обзор","headline2":"телевизора.","summary":"Диагностика и обслуживание в локальной сети. Без отправки данных в облако.","refresh":"↻ Обновить","export":"↓ Экспорт JSON","device":"УСТРОЙСТВО","memory":"ОПЕРАТИВНАЯ ПАМЯТЬ","storage":"ХРАНИЛИЩЕ","display":"ЭКРАН","network":"СЕТЬ","codec":"ДЕКОДИРОВАНИЕ ВИДЕО","technical":"Технические данные","applications":"Приложения","maintenance":"Обслуживание и инструменты","search":"Найти приложение","cleanup":"СТАНДАРТНАЯ ОЧИСТКА","doctorCache":"Кэш TV Doctor","cleanButton":"Очистить кэш","advanced":"Расширенные функции","root":"ТРЕБУЕТСЯ ROOT"}};
+let language=null;
+let manualLanguage=false;
+try{const saved=localStorage.getItem("atomic.doctor.lang");if(saved&&translations[saved]){language=saved;manualLanguage=true;}}catch(e){}
+function changeLanguage(next,save){
+ language=translations[next]?next:"fr";
+ document.documentElement.lang=language;
+ el("language").value=language;
+ for(const node of document.querySelectorAll("[data-i18n]")){
+  const id=node.getAttribute("data-i18n");
+  node.textContent=translations[language][id]||translations.fr[id]||node.textContent;
+ }
+ if(save){manualLanguage=true;try{localStorage.setItem("atomic.doctor.lang",language);}catch(e){}}
+}
+el("language").addEventListener("change",event=>changeLanguage(event.target.value,true));
+changeLanguage(language||"fr",false);
+
 let latest=null,apps=[];
 const set=(id,value)=>{el(id).textContent=String(value??"—")};
 const bytes=value=>{
@@ -24,7 +41,7 @@ function fields(data){
  ["Stockage disponible",bytes(data.storageAvailable)],["Cache TV Doctor",bytes(data.ownCacheBytes)],
  ["Interface Android",data.displayWidth+" × "+data.displayHeight+" px"],
  ["Mode Android actif",data.activeModeWidth+" × "+data.activeModeHeight+" px"],
- ["Résolution native de la dalle","Non déterminable via l'API publique"],
+ ["Résolution native de la dalle",data.panelResolutionSource==="user"?data.panelWidth+" × "+data.panelHeight+" (déclarée sur la TV)":"Non déterminée par l’API Android"],
  ["Mode max signalé",data.maxExposedModeWidth+" × "+data.maxExposedModeHeight+" px"],
  ["Fréquence affichage",data.refreshRateHz+" Hz"],
  ["HDR déclaré",yes(data.displayHdrSupported)],
@@ -49,7 +66,7 @@ async function refresh(){
  try{
   const res=await fetch("/api/status?key="+encodeURIComponent(token),{cache:"no-store",credentials:"omit"});
   if(!res.ok)throw Error("HTTP "+res.status);
-  const d=await res.json();latest=d;
+  const d=await res.json();latest=d;if(!manualLanguage&&d.uiLanguage)changeLanguage(d.uiLanguage,false);
   set("state","● TV connectée · "+new Date(d.collectedAt).toLocaleTimeString("fr-FR"));
   set("device",(d.manufacturer||"")+" "+(d.model||""));
   set("android","Android "+d.android+" · "+d.cpuCores+" cœurs · API "+d.sdk);
@@ -64,8 +81,13 @@ async function refresh(){
   set("storageTotal",bytes(d.storageTotal)+" au total");
   const disk=percent(d.storageTotal-d.storageAvailable,d.storageTotal);
   drawDonut("diskDonut",disk);set("diskPercent",disk+" %");
-  set("display",d.displayWidth+" × "+d.displayHeight);
-  set("displayNote","Surface de rendu Android · "+d.refreshRateHz+" Hz");
+  if(d.panelResolutionSource==="user"&&d.panelWidth>0){
+   set("display",d.panelWidth>=3840?"4K UHD":d.panelWidth+" × "+d.panelHeight);
+   set("displayNote","Dalle renseignée : "+d.panelWidth+" × "+d.panelHeight+" · Interface Android : "+d.displayWidth+" × "+d.displayHeight);
+  }else{
+   set("display",d.displayWidth+" × "+d.displayHeight);
+   set("displayNote","Interface Android · "+d.refreshRateHz+" Hz · dalle native non déterminée");
+  }
   set("displayModes",d.exposed4kMode?"Mode 4K déclaré parmi les modes Android":"Dalle native 4K : non vérifiable via Android");
   set("network",d.network);set("connectivity",d.internetValidated?"Internet validé":"Internet non confirmé");
   set("ip","IP locale : "+(d.ipAddress||"—"));
