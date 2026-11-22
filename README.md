@@ -1,51 +1,89 @@
 # ATOMIC TV Doctor
 
-Application de diagnostic **Android TV / Google TV** — **JB Atomic Industries** ([site officiel](https://jbatomic.com/)).
+**Diagnostic, applications et maintenance Android TV / Google TV** — [JB Atomic Industries](https://jbatomic.com/).
 
-## Fonctions v1.1.0
+[![Android TV build](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml/badge.svg)](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml)
 
-- Tableau de bord TV compact avec jauges circulaires RAM/stockage, six cartes et focus télécommande très contrasté.\n- Diagnostics système enrichis : build et correctif de sécurité, architectures CPU, RAM, stockage, réseau et IP, affichage, fréquence, HDR déclaré, sorties audio et codecs H.264/HEVC/VP9/AV1.\n- Onglets dédiés : Tableau de bord, Maintenance, Diagnostic détaillé, Portail PC, Mises à jour.\n- Maintenance sans root : effacement confirmé du **cache propre de TV Doctor** ; raccourcis vers stockage et réseau Android ; liste des applications avec lanceur visible et accès à leurs fiches de gestion Android.
-- Portail de diagnostic **web local pour PC, tablette et smartphone**, avec export JSON, rafraîchissement, fiche technique étendue et action POST confirmée pour nettoyer le cache propre de Doctor (jeton privé et contrôle de provenance).
-- Serveur HTTP **désactivé par défaut**, activable dans l'application TV, **port modifiable entre 1024 et 65535** (8766 par défaut).
-- URL d’accès privée avec jeton aléatoire renouvelé à chaque activation. Aucune commande système n'est exposée au web.
-- Vérification des mises à jour **GitHub Releases** à l'ouverture (maximum une fois toutes les 12 heures), et à la demande. Téléchargement d'une nouvelle APK officielle, puis **confirmation obligatoire par Android** pour l'installation.
+## Version 1.2.0 — Fonctionnalités
 
-## Tester l'application
+### Tableau de bord TV
+- Interface compacte à **six cartes** : appareil, RAM, stockage, affichage, réseau, codecs.
+- Jauges circulaires RAM et stockage en **octets convertis en Mo/Go**, taux d'occupation réel.
+- Focus télécommande cyan visible, sections défilantes uniquement lorsque nécessaire.
+- Résolution de **rendu Android** distincte des modes exposés. **La résolution native de la dalle ne peut pas toujours être déterminée** par les API Android standard. Une TV 4K peut afficher une surface d'application en 1920×1080.
 
-Ouvrir [Actions](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions), sélectionner le dernier workflow réussi, puis télécharger son artefact `ATOMIC-TV-Doctor-DEBUG`. Extraire l’APK et l’installer sur la TV.
+### Gestionnaire d'applications intégré
+- Liste des applications exposées par les lanceurs Android TV / Android (les services masqués peuvent ne pas apparaître).
+- **Ouvrir** une application sans quitter l'outil pour les paramètres.
+- **Désinstaller** une application utilisateur avec la confirmation exigée par Android.
+- Actions **ROOT requis** (pictogramme bouclier orange) : arrêter une application utilisateur, la geler et la réactiver. Les applications système sont exclues des opérations de désactivation.
+- Les applications gelées par Doctor sont mémorisées pour proposer leur réactivation.
 
-Une fois lancée, renseigner le port et activer le portail web. Sur le PC connecté au même réseau, ouvrir **l'URL complète** affichée à l’écran TV, contenant le jeton d’accès. Le jeton est privé. La TV et le PC doivent communiquer sur le réseau local.
+### Entretien
+- Nettoyage sûr du **cache propre de Doctor**, sans toucher aux fichiers d'autres applications.
+- **ROOT requis** : purge des caches récupérables Android par `pm trim-caches 16G`, après confirmation. Le volume libéré peut être nul ; ce n'est pas un gain de performance garanti.
+- Aucun effacement automatique de données utilisateur, aucun « booster RAM » trompeur.
+- Vérification des droits ROOT déclenchée explicitement dans la section Maintenance. **Aucune demande de ROOT au démarrage**.
 
-La version **DEBUG** est `com.jbatomic.tvdoctor.debug` ; une APK release officielle utilisera `com.jbatomic.tvdoctor`.
+### Diagnostic technique
+- Android : modèle, carte, matériel, version, correctif, ABI, CPU.
+- RAM : totale, libre, seuil mémoire faible.
+- Stockage : total, disponible, utilisé, cache propre.
+- Réseau : Ethernet/Wi‑Fi, IP, interface et capacités de liaison annoncées (**non assimilées à un speedtest**).
+- Vidéo/audio : résolution de rendu, modes d'affichage signalés, Hz, HDR déclaré, sorties audio, décodeurs multimédia.
+- Partage JSON du diagnostic.
 
-## Publier des versions signées et permettre les mises à jour
+### Portail web PC, tablette et smartphone
+- Tableau de bord responsive, graphiques RAM/stockage, inventaire des applications en lecture seule, rapport technique et export JSON.
+- Nettoyage confirmé du cache propre de Doctor depuis le portail.
+- **Port HTTP modifiable 1024–65535** (8766 par défaut), activation manuelle depuis la TV, jeton privé renouvelé à chaque activation.
+- Les **actions ROOT s'exécutent uniquement sur la TV après confirmation physique**, pas sur le portail web.
 
-Dans GitHub → Settings → Secrets and variables → Actions, configurer :
+## APK de test
 
-| Secret | Valeur |
+1. Ouvrir [GitHub Actions](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions).
+2. Sélectionner le dernier run **réussi** de `main`.
+3. Sous **Artifacts**, télécharger `ATOMIC-TV-Doctor-DEBUG` et extraire `app-debug.apk`.
+4. Installer via ADB ou un gestionnaire d'APK. L'identifiant DEBUG est `com.jbatomic.tvdoctor.debug`.
+
+Le build GitHub vérifie la syntaxe JavaScript du portail et compile l'APK Android. **Une compilation réussie ne remplace pas un test sur un téléviseur réel**, notamment pour le focus D-pad et la disponibilité des commandes du constructeur.
+
+## Mise à jour et releases signées
+
+L'application **cherche automatiquement les mises à jour** via GitHub Releases à l'ouverture, au plus toutes les 12 heures, ainsi qu'à la demande. En cas de nouvelle release signée, elle télécharge l'APK officiel et demande l'accord d'Android pour l'installation. Pas d'installation silencieuse.
+
+Secrets de publication GitHub Actions à configurer :
+
+| Nom | Contenu |
 | --- | --- |
-| `DOCTOR_KEYSTORE_BASE64` | Keystore Android encodé en base64 |
+| `DOCTOR_KEYSTORE_BASE64` | Keystore Android converti en base64 |
 | `DOCTOR_STORE_PASSWORD` | Mot de passe du keystore |
 | `DOCTOR_KEY_ALIAS` | Alias de signature |
 | `DOCTOR_KEY_PASSWORD` | Mot de passe de la clé |
 
-Protéger soigneusement la clé : **toutes les mises à jour officielles doivent conserver la même signature**. Après augmentation de `versionCode` et `versionName` dans `app/build.gradle`, pousser un tag `vX.Y.Z` correspondant à la version. Le workflow compile et publie `ATOMIC-TV-Doctor-AndroidTV.apk` dans GitHub Releases. Sans secrets de signature, le workflow refuse volontairement la publication.
+Ne **jamais** committer la clé. Pour une release : incrémenter `versionCode` et `versionName`, puis publier un tag Git `vX.Y.Z` identique à `versionName`. Les nouvelles APK officielles doivent conserver la même signature Android.
 
-Les mises à jour sont **détectées automatiquement**, mais l'installation ne peut pas être silencieuse pour une application Android TV standard. L'utilisateur doit l'autoriser.
+Les builds DEBUG et RELEASE ont des identifiants distincts ; installer une release ne met pas directement à jour un build DEBUG.
 
 ## Sécurité et limites
 
-Le serveur local utilise **HTTP non chiffré** : ne l'activer que sur un réseau privé de confiance. Il est arrêté lorsque l'application est fermée ou le portail désactivé. Les diagnostics restent sur la TV jusqu'à consultation volontaire via le réseau local.
+- Sans ROOT, Android interdit l'arrêt forcé direct d'autres applications et leur désactivation arbitraire. La désinstallation passe par la confirmation système.
+- Avec ROOT, Doctor limite les commandes privilégiées à une **liste blanche** ; les noms de paquets sont validés et les applications système ne peuvent pas être gelées par Doctor.
+- **Aucun accès ROOT via le portail HTTP**. Les actions root exigent une confirmation côté TV.
+- Ne pas activer le portail HTTP sur un Wi-Fi public, et ne pas exposer son port sur Internet : la liaison locale n'est pas chiffrée.
+- Les mesures vidéo et codec proviennent des déclarations Android ; elles ne prouvent pas les capacités exactes de chaque entrée HDMI, ni la résolution native de la dalle. Aucun FPS HDMI/ARC/eARC universel n'est promis.
+- Rooter un téléviseur peut compromettre la sécurité et les garanties ; Doctor **ne root pas** l'appareil.
 
-Le nettoyage global des caches des autres applications et leur arrêt forcé ne sont **pas** implémentés : Android interdit ces opérations sans droits privilégiés, et elles risqueraient de perturber la TV. Le bouton Maintenance renvoie vers les réglages Android qui gèrent ces opérations. Les indications de débit dans les API système sont des estimations de capacités de liaison, pas des speedtests réels.\n\nLes API Android ne fournissent pas toutes les mesures : aucune promesse de FPS HDMI, de température universelle ou d'état eARC. La présence d'un décodeur ne garantit pas chaque profil ou résolution.
+## Architecture
 
-## Code
+- `MainActivity.java` : interface TV et actions utilisateur.
+- `DoctorSnapshot.java` : informations système et formatage Mo/Go.
+- `DoctorApps.java` : inventaire des applications visibles par Android.
+- `DoctorRoot.java` : commandes root strictement limitées et contrôles de privilèges.
+- `DoctorMaintenance.java` : nettoyage strictement limité au cache appartenant à Doctor.
+- `DoctorWebServer.java` : serveur local à jeton, API de diagnostic, inventaire et nettoyage non privilégié.
+- `DoctorGauge.java` : jauges natives.
+- `app/src/main/assets/` : portail web autonome.
+- `.github/workflows/android.yml` : builds et publications officielles conditionnées à la signature.
 
-- `MainActivity.java` — interface Android TV, paramètres du portail, recherche de nouvelles versions.
-- `DoctorSnapshot.java` — informations matériel/système.
-- `DoctorWebServer.java` — serveur HTTP local en lecture seule.
-- `InstallerProvider.java` — fichier APK destiné à l'installateur Android.
-- `app/src/main/assets/` — interface web HTML/CSS/JavaScript autonome.
-- `.github/workflows/android.yml` — build et publication GitHub Releases.
-
-© JB Atomic Industries. Code en cours de développement.
+© JB Atomic Industries. Version de développement.
