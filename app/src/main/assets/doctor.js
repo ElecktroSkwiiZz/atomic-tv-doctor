@@ -139,23 +139,44 @@ function downloadReport(){
  a.href=url;a.download="ATOMIC-TV-Doctor-diagnostic.json";a.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+let webFolder="";
 async function loadFiles(){
  if(!token)return;
- const list=el("fileList");list.replaceChildren();set("fileCount","Lecture des fichiers…");
+ const list=el("fileList");list.replaceChildren();
+ set("fileCount","Lecture des fichiers…");
  try{
-  const r=await fetch("/api/files?key="+encodeURIComponent(token),{cache:"no-store",credentials:"omit"});
-  if(!r.ok)throw Error("HTTP "+r.status);
-  const data=await r.json();
-  if(!data.authorized){set("fileCount","Dossier non autorisé sur la TV");return}
+  const request="/api/files?key="+encodeURIComponent(token)+"&folder="+encodeURIComponent(webFolder);
+  const response=await fetch(request,{cache:"no-store",credentials:"omit"});
+  if(!response.ok)throw Error("HTTP "+response.status);
+  const data=await response.json();
+  if(!data.authorized){webFolder="";set("fileCount","Dossier non autorisé sur la TV");return}
   const entries=Array.isArray(data.items)?data.items:[];
-  set("fileCount",entries.length+" éléments · dossier choisi sur la TV");
+  if(data.source==="shared"){
+   webFolder=data.folder||"";
+   set("fileCount",(webFolder?"/"+webFolder:"Stockage partagé")+" · "+entries.length+" éléments");
+   if(webFolder){
+    const back=document.createElement("button");back.textContent="← Dossier parent";
+    back.addEventListener("click",()=>{
+      webFolder=webFolder.includes("/")?webFolder.slice(0,webFolder.lastIndexOf("/")):"";
+      loadFiles();
+    });
+    list.append(back);
+   }
+  }else set("fileCount",entries.length+" éléments · dossier autorisé sur la TV");
   for(const entry of entries.slice(0,160)){
    const box=document.createElement("div");box.className="app-row";
-   const label=document.createElement("strong");
-   label.textContent=(entry.directory?"▣ ":"◻ ")+entry.name;
-   const size=document.createElement("small");
-   size.textContent=entry.directory?"Dossier":bytes(entry.size);
-   box.append(label,size);list.append(box);
+   const label=document.createElement("strong");label.textContent=(entry.directory?"▣ ":"◻ ")+entry.name;
+   const size=document.createElement("small");size.textContent=entry.directory?"Dossier":bytes(entry.size);
+   box.append(label,size);
+   if(entry.directory&&data.source==="shared"){
+    const open=document.createElement("button");open.textContent="Ouvrir";
+    open.addEventListener("click",()=>{
+      webFolder=webFolder?webFolder+"/"+entry.name:entry.name;
+      loadFiles();
+    });
+    box.append(open);
+   }
+   list.append(box);
   }
  }catch(e){set("fileCount","Lecture impossible : "+e.message)}
 }
