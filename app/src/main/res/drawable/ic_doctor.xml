@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#071327" android:pathData="M14,6 L94,6 Q102,6 102,14 L102,94 Q102,102 94,102 L14,102 Q6,102 6,94 L6,14 Q6,6 14,6 Z"/>
-    <path android:strokeColor="#00DAED" android:strokeWidth="4" android:fillColor="@android:color/transparent" android:pathData="M15,54 L30,54 L37,36 L48,73 L58,45 L64,54 L92,54"/>
-    <path android:strokeColor="#4A82FF" android:strokeWidth="2" android:fillColor="@android:color/transparent" android:pathData="M20,21 L32,21 M20,21 L20,33 M88,21 L76,21 M88,21 L88,33 M20,87 L32,87 M20,87 L20,75 M88,87 L76,87 M88,87 L88,75"/>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+  <path android:fillColor="#07182D" android:pathData="M54,4 L94,27 L94,81 L54,104 L14,81 L14,27 Z"/>
+  <path android:fillColor="@android:color/transparent" android:strokeColor="#00DCEB" android:strokeWidth="3.5" android:strokeLineJoin="round" android:pathData="M54,4 L94,27 L94,81 L54,104 L14,81 L14,27 Z"/>
+  <path android:fillColor="#102942" android:pathData="M23,33 L85,33 Q89,33 89,37 L89,71 Q89,75 85,75 L23,75 Q19,75 19,71 L19,37 Q19,33 23,33 Z"/>
+  <path android:fillColor="@android:color/transparent" android:strokeColor="#66AAFF" android:strokeWidth="2" android:pathData="M20,38 L20,31 Q20,26 25,26 L34,26 M88,38 L88,31 Q88,26 83,26 L74,26 M20,71 L20,77 Q20,82 25,82 L34,82 M88,71 L88,77 Q88,82 83,82 L74,82"/>
+  <path android:fillColor="@android:color/transparent" android:strokeColor="#05E5ED" android:strokeWidth="4.5" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M25,54 L39,54 L46,41 L55,68 L64,47 L69,54 L83,54"/>
+  <path android:fillColor="#00DFEC" android:pathData="M76,19 L82,19 L82,13 L87,13 L87,19 L93,19 L93,24 L87,24 L87,30 L82,30 L82,24 L76,24 Z"/>
 </vector>
