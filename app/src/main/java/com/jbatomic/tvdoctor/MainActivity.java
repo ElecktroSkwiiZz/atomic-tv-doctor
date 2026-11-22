@@ -476,14 +476,6 @@ public final class MainActivity extends Activity {
         Button export=button("Partager le rapport JSON complet");page.addView(export,new LinearLayout.LayoutParams(-1,dp(45)));
         export.setOnClickListener(v->shareReport());
     }
-    private void shareReport(){
-        snapshot();
-        Intent send=new Intent(Intent.ACTION_SEND);
-        send.setType("application/json");
-        send.putExtra(Intent.EXTRA_TEXT,snapshot.toString());
-        try{startActivity(Intent.createChooser(send,"Exporter le diagnostic"));}
-        catch(Exception e){toast("Aucune application de partage disponible sur ce téléviseur.");}
-    }
     private void portal(){
         title(page,"Portail PC","Tableau de bord web en réseau local. Port modifiable et URL privée renouvelée à chaque activation.");
         LinearLayout box=panel("CONNEXION LOCALE",CYAN);
