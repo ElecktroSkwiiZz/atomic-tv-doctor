@@ -1,26 +1,83 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>ATOMIC TV Doctor · Diagnostic</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/doctor.css" /></head>
+<head>
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#090f1c">
+ <title>ATOMIC TV Doctor · Centre de diagnostic</title>
+ <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+ <link rel="stylesheet" href="/doctor.css">
+ <script src="/doctor.js" defer></script>
+</head>
 <body>
-<div class="shell">
-<header class="top"><div class="logo"><img src="/favicon.svg" alt=""><div><span class="brand">JB ATOMIC INDUSTRIES</span><strong>ATOMIC <em>TV Doctor</em></strong></div></div><span class="pill" id="state">Connexion…</span></header>
-<main>
-<div class="intro"><div><div class="eyebrow">DIAGNOSTIC / ANDROID TV</div><h1>État de votre <span>appareil.</span></h1><p>Informations collectées localement. Aucun compte ni service cloud nécessaire.</p></div><button id="refresh">↻ Actualiser</button></div>
-<div class="grid">
-<section class="card hero"><div class="card-label">APPAREIL</div><h2 id="device">—</h2><p id="android">—</p><div class="stats"><span>CPU <b id="cpu">—</b></span><span>Matériel <b id="hardware">—</b></span><span>Uptime <b id="uptime">—</b></span></div></section>
-<section class="card"><div class="card-label">MÉMOIRE RAM</div><div class="big" id="ram">—</div><p id="ramTotal">—</p><div class="meter"><div id="ramMeter"></div></div></section>
-<section class="card"><div class="card-label">STOCKAGE INTERNE</div><div class="big" id="storage">—</div><p id="storageTotal">—</p><div class="meter"><div id="storageMeter"></div></div></section>
-<section class="card"><div class="card-label">CONNEXION</div><div class="big" id="network">—</div><p id="connectivity">—</p></section>
-<section class="card"><div class="card-label">DÉCODEURS VIDÉO</div><div class="codecs"><span>H.264 <b id="h264">—</b></span><span>HEVC <b id="hevc">—</b></span><span>AV1 <b id="av1">—</b></span></div><p id="decoderCount">—</p></section>
-<section class="card"><div class="card-label">APPLICATION</div><div class="big" id="version">—</div><p>ATOMIC TV Doctor · version installée</p><button id="export">Exporter le rapport JSON</button></section>
-</div>
-<section class="technical card"><div class="card-label">FICHE TECHNIQUE COMPLÈTE</div>
-<div class="techgrid" id="techDetails"></div></section>
-<section class="technical card"><div class="card-label">ENTRETIEN & OUTILS</div>
-<div class="maintenance-row"><div><h2>Fichiers temporaires</h2><p id="cacheSize">Calcul…</p><p>Nettoie uniquement le cache de TV Doctor, sans effacer les autres applications.</p></div>
-<button id="cleanOwnCache">Nettoyer mon cache</button></div><p id="cleanResult" role="status"></p>
-<p>Pour désinstaller ou gérer les caches d'autres applications, ouvre l'onglet Maintenance sur la TV : Android impose une confirmation ou des privilèges spécifiques.</p>
-</section>
-<div class="note"><b>Accès privé :</b> seul un appareil possédant l'URL complète affichée sur votre TV peut consulter ce diagnostic. Le portail utilise HTTP sur le réseau local : évitez les réseaux publics.</div>
-</main><footer>© JB Atomic Industries · <a href="https://jbatomic.com/" target="_blank" rel="noopener noreferrer">jbatomic.com</a></footer>
-</div><script src="/doctor.js" defer></script></body></html>
+ <div class="layout">
+  <header class="header">
+   <a class="brand" href="/" aria-label="ATOMIC TV Doctor">
+    <img src="/favicon.svg" width="46" height="46" alt="">
+    <span><small>JB ATOMIC INDUSTRIES</small><strong>ATOMIC <em>TV Doctor</em></strong></span>
+   </a>
+   <div class="status" id="state" role="status">Connexion au téléviseur…</div>
+  </header>
+  <main>
+   <div class="hero">
+    <div><p class="eyebrow">CENTRE DE DIAGNOSTIC · ANDROID TV</p>
+     <h1>Vue d'ensemble <span>de votre TV.</span></h1>
+     <p class="summary">Diagnostic et entretien accessibles sur votre réseau local. Aucune donnée transmise au cloud.</p>
+    </div>
+    <div class="toolbar">
+     <button id="refresh" class="primary">↻ Actualiser</button>
+     <button id="export">↓ Exporter JSON</button>
+    </div>
+   </div>
+   <section class="stats-grid" aria-label="État du téléviseur">
+    <article class="panel hero-card accent-blue"><div class="label">APPAREIL</div>
+      <h2 id="device">—</h2><p id="android">—</p>
+      <div class="chips"><span>CPU <b id="cpu">—</b></span><span>SO​C <b id="hardware">—</b></span><span>Activité <b id="uptime">—</b></span></div>
+    </article>
+    <article class="panel accent-purple"><div class="label">MÉMOIRE RAM</div>
+      <div class="horizontal"><div class="donut purple" id="ramDonut"><span id="ramPercent">—</span></div>
+      <div><strong class="metric" id="ram">—</strong><p id="ramTotal">—</p></div></div>
+    </article>
+    <article class="panel accent-green"><div class="label">STOCKAGE INTERNE</div>
+      <div class="horizontal"><div class="donut green" id="diskDonut"><span id="diskPercent">—</span></div>
+      <div><strong class="metric" id="storage">—</strong><p id="storageTotal">—</p></div></div>
+    </article>
+    <article class="panel accent-cyan"><div class="label">AFFICHAGE</div>
+      <strong class="metric" id="display">—</strong><p id="displayNote">Résolution de rendu Android, différente de la dalle native.</p>
+      <p class="tag" id="displayModes">Modes Android en cours de lecture</p>
+    </article>
+    <article class="panel accent-green"><div class="label">CONNEXION</div>
+      <strong class="metric" id="network">—</strong><p id="connectivity">—</p>
+      <p class="tag" id="ip">—</p>
+    </article>
+    <article class="panel accent-orange"><div class="label">DÉCODAGE VIDÉO</div>
+      <div class="codecs"><span>H.264 <b id="h264">—</b></span><span>HEVC <b id="hevc">—</b></span>
+      <span>VP9 <b id="vp9">—</b></span><span>AV1 <b id="av1">—</b></span></div>
+      <p id="decoderCount">—</p>
+    </article>
+   </section>
+   <div class="section-top"><h2>Informations techniques</h2><p>Valeurs Android contextualisées : octets convertis en Mo/Go, fréquences en Hz.</p></div>
+   <section class="panel details"><div id="techDetails" class="techgrid"></div></section>
+   <div class="section-top"><h2>Applications détectées</h2><p>Inventaire en lecture seule. Gérer, désinstaller et utiliser ROOT directement depuis la TV.</p></div>
+   <section class="panel apps">
+    <div class="apps-head"><label for="appSearch">Rechercher une application</label><input type="search" id="appSearch" placeholder="Nom ou identifiant du paquet" autocomplete="off"><span id="appCount"></span></div>
+    <div id="appList" class="app-list"><p>Lecture de l'inventaire…</p></div>
+   </section>
+   <div class="section-top"><h2>Maintenance et outils avancés</h2><p>Les opérations privilégiées nécessitent ROOT et une confirmation sur le téléviseur.</p></div>
+   <section class="maintenance">
+    <article class="panel"><div class="label">NETTOYAGE STANDARD</div><h3>Cache de TV Doctor</h3>
+     <p id="cacheSize">—</p><p>Supprime uniquement les fichiers temporaires de cette application.</p>
+     <button id="cleanOwnCache">Nettoyer le cache</button><p class="result" id="cleanResult" role="status"></p>
+    </article>
+    <article class="panel root-card">
+     <div class="root-badge"><svg width="23" height="23" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 7v10c0 6-5 11-12 13C9 28 4 23 4 17V7Z" fill="#2b1912" stroke="#ffb067" stroke-width="2"/><path d="M14 8h5v6h4v5h-4v5h-5v-5H9v-5h5z" fill="#ffb067"/></svg><strong>ROOT REQUIS</strong></div>
+     <h3>Maintenance avancée</h3><p>Purge des caches Android, arrêt forcé et gel réversible des applications utilisateur.</p>
+     <p class="warning">Autorisation ROOT et confirmation sur l'écran TV obligatoires. Aucune commande root n'est exposée sur le portail web.</p>
+    </article>
+   </section>
+   <p class="privacy">🔒 Le portail fonctionne en HTTP sur votre réseau local. Gardez l'URL d'accès privée et n'ouvrez pas le port sur Internet.</p>
+  </main>
+  <footer><span>ATOMIC TV Doctor · <span id="version">—</span> · JB Atomic Industries</span>
+    <a href="https://jbatomic.com" target="_blank" rel="noopener noreferrer">jbatomic.com</a></footer>
+ </div>
+</body>
+</html>
