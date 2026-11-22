@@ -159,9 +159,9 @@ async function loadFiles(){
   }
  }catch(e){set("fileCount","Lecture impossible : "+e.message)}
 }
-el("refresh").addEventListener("click",()=>{refresh();applications();loadFiles();loadFiles()});
+el("refresh").addEventListener("click",()=>{refresh();applications();loadFiles()});
 el("export").addEventListener("click",downloadReport);
 el("cleanOwnCache").addEventListener("click",clean);
 el("appSearch").addEventListener("input",renderApps);
-refresh();applications();
+refresh();applications();loadFiles();
 })();

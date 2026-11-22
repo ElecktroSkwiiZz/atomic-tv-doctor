@@ -4,7 +4,17 @@
 
 [![Android TV build](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml/badge.svg)](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml)
 
-## Version 1.2.0 — Fonctionnalités
+## Version 1.3.0 — Fonctionnalités
+
+### Nouveau dans la V1.3
+
+- **Navigation TV corrigée :** les rangées Maintenance et Tableau de bord ne fixent plus des hauteurs susceptibles de masquer les boutons ; elles s'adaptent au contenu et défilent si nécessaire.
+- **Langues FR / EN / ES / RU :** sélecteur dans l'en-tête TV et sélecteur indépendant dans le portail PC ; principaux onglets et contrôles traduits, traduction des libellés techniques en cours d'extension.
+- **Résolution de dalle :** réglage depuis l'onglet Technique pour déclarer la résolution native réelle (4K UHD, Full HD, indéterminée). L'application conserve cette valeur et l'affiche distinctement de l'interface Android en 1080p. Un choix utilisateur est explicitement étiqueté comme tel ; il ne s'agit pas d'une mesure automatique.
+- **Gestionnaire de fichiers intégré :** sélection d'un dossier autorisé, navigation par dossiers, tri par nom ou taille, ouverture des fichiers, suppression individuelle confirmée et statistiques de volume. L'inventaire du dossier autorisé est consultable en lecture seule depuis le portail PC. Aucun effacement en masse.
+- **RAM et performances — ROOT requis :** proposition d'arrêter les processus que le gestionnaire Android considère comme secondaires, avec mesure de la RAM disponible avant/après. Les gains peuvent être temporaires et certaines applications seront relancées automatiquement. Ne pas présenter comme une accélération garantie.
+
+**Limite Android TV / Android 11 :** Android exige une autorisation de dossier via son sélecteur de fichiers (Storage Access Framework). La racine du stockage, le dossier Download racine et Android/data ne peuvent pas être sélectionnés sur Android 11+. Certaines TV n'installent aucun sélecteur de dossier compatible : dans ce cas l'explorateur affichera une limitation et ne tentera pas de contourner la protection.
 
 ### Tableau de bord TV
 - Interface compacte à **six cartes** : appareil, RAM, stockage, affichage, réseau, codecs.

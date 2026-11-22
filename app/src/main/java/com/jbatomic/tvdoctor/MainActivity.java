@@ -379,8 +379,8 @@ public final class MainActivity extends Activity {
                 DoctorRoot.Result result=DoctorRoot.releaseBackgroundRam();
                 android.os.SystemClock.sleep(1200);
                 long after=DoctorSnapshot.collect(this).optLong("ramAvailable");
-                String diff=(after-before>=0?"+":"")+bytes(Math.abs(after-before));
-                return new DoctorRoot.Result(result.success,result.output+"\\nRAM libre avant : "+bytes(before)+"\\nRAM libre après : "+bytes(after)+"\\nVariation en valeur absolue : "+diff);
+                String diff=(after-before>=0?"+":"-")+bytes(Math.abs(after-before));
+                return new DoctorRoot.Result(result.success,result.output+"\\nRAM libre avant : "+bytes(before)+"\\nRAM libre après : "+bytes(after)+"\\nVariation de RAM libre : "+diff);
             },()->showPage(CLEAN)));
         page.addView(perf,new LinearLayout.LayoutParams(-1,-2));
         gap(page,12);
