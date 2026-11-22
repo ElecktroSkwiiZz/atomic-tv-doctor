@@ -66,7 +66,7 @@ public final class DoctorSnapshot {
 
     public static String prettyBytes(long bytes) {
         if (bytes <= 0) return "0 B";
-        String[] units = {"B", "KB", "GB", "TB"};
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
         double n = bytes;
         int unit = 0;
         while(n >= 1024 && unit < units.length - 1) { n /= 1024.0; unit++; }
