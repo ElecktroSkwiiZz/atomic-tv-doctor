@@ -99,6 +99,7 @@ public final class MainActivity extends Activity {
         else if(selected==1) maintenance();
         else if(selected==2) diagnostic();
         else if(selected==3) portal();
+        else if(selected==5) applicationList();
         else updatesPage();
     }
     private LinearLayout card(String heading){
@@ -190,6 +191,8 @@ public final class MainActivity extends Activity {
         caption(apps,"Désinstallation, permissions, stockage et cache par application via les paramètres système.");
         Button manage=button("Ouvrir la liste des applications");apps.addView(manage);
         manage.setOnClickListener(v->openSettings(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS));
+        Button listed=button("Lister les applications accessibles");apps.addView(listed);
+        listed.setOnClickListener(v->showPage(5));
         Button own=button("Informations de TV Doctor");apps.addView(own);
         own.setOnClickListener(v->{Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName()));try{startActivity(i);}catch(Exception e){message(e.getMessage());}});
         LinearLayout bottom=row();LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,0,1);bp.topMargin=dp(10);page.addView(bottom,bp);
@@ -262,6 +265,46 @@ public final class MainActivity extends Activity {
         status.setText(running?"Portail activé (HTTP sur réseau local)":"Portail désactivé");
         String ip=DoctorSnapshot.collect(this).optString("ipAddress","IP_DE_LA_TV");
         link.setText(running?"Adresse privée à saisir sur le PC :\nhttp://"+ip+":"+web.port()+"/?key="+web.token():"");
+    }
+    private void applicationList(){
+        TextView heading=text("Applications de la TV",21,TEXT,true);
+        page.addView(heading);
+        caption(page,"Liste des applications avec lanceur TV. Les services masqués peuvent ne pas apparaître (limitations Android).");
+        Button back=button("← Retour à la maintenance");
+        page.addView(back,new LinearLayout.LayoutParams(dp(260),dp(44)));
+        back.setOnClickListener(v->showPage(1));
+        ScrollView scroll=new ScrollView(this);
+        page.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout list=vertical();scroll.addView(list);
+        android.content.pm.PackageManager pm=getPackageManager();
+        java.util.Map<String,String> found=new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        String[] categories={Intent.CATEGORY_LEANBACK_LAUNCHER,Intent.CATEGORY_LAUNCHER};
+        for(String category:categories){
+            Intent query=new Intent(Intent.ACTION_MAIN);query.addCategory(category);
+            for(android.content.pm.ResolveInfo ri:pm.queryIntentActivities(query,0)){
+                if(ri.activityInfo==null || ri.activityInfo.packageName==null)continue;
+                String name=String.valueOf(ri.loadLabel(pm));
+                found.put(name+" / "+ri.activityInfo.packageName,ri.activityInfo.packageName);
+            }
+        }
+        int count=0;
+        for(java.util.Map.Entry<String,String> entry:found.entrySet()){
+            String label=entry.getKey(),pkg=entry.getValue();
+            LinearLayout row=row();
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.topMargin=dp(6);
+            row.setPadding(dp(14),0,dp(8),0);row.setBackground(bg(PANEL,0xff2b445a));
+            TextView item=text(label,14,TEXT,false);
+            row.addView(item,new LinearLayout.LayoutParams(0,-2,1));
+            Button info=button("Gérer");
+            row.addView(info,new LinearLayout.LayoutParams(dp(110),dp(43)));
+            info.setOnClickListener(v->{
+                Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+pkg));
+                try{startActivity(i);}catch(Exception e){message("Paramètres indisponibles pour cette application.");}
+            });
+            list.addView(row,lp);count++;
+            if(count>=150)break;
+        }
+        if(count==0)caption(list,"Aucune application visible via les API Android.");
     }
     private void updatesPage(){
         LinearLayout block=card("Mises à jour officielles");page.addView(block,new LinearLayout.LayoutParams(-1,-2));
