@@ -51,6 +51,7 @@ public final class MainActivity extends Activity {
     private boolean largestFirst=true;
     private java.io.File sharedFolder;
     private boolean useSharedFiles=false;
+    private boolean showingLargest=false;
     private LinearLayout fileRows;
     private TextView fileStatus, filePath;
 
@@ -430,6 +431,7 @@ public final class MainActivity extends Activity {
         boolean allFiles=android.os.Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager();
         navButton(actions,allFiles?"Stockage partagé":"Autoriser accès complet",()->openSharedStorage());
         navButton(actions,"Choisir un dossier",()->chooseFolder());
+        navButton(actions,"Fichiers volumineux",()->showLargestFiles());
         navButton(actions,"Dossier parent",()->goParentFolder());
         navButton(actions,largestFirst?"Trier par nom":"Trier par taille",()->{largestFirst=!largestFirst;showPage(FILES);});
         gap(page,8);
@@ -524,7 +526,30 @@ public final class MainActivity extends Activity {
         currentFolderId=folderHistory.pop();
         reloadFiles();
     }
+    private void showLargestFiles(){
+        if(android.os.Build.VERSION.SDK_INT<30||!android.os.Environment.isExternalStorageManager()){
+            toast("Pour analyser le stockage partagé, autorise d'abord l'accès aux fichiers.");
+            return;
+        }
+        useSharedFiles=true;showingLargest=true;
+        if(fileRows==null)return;
+        fileRows.removeAllViews();
+        fileStatus.setText("Analyse des gros fichiers… Parcours limité pour préserver les performances de la TV.");
+        new Thread(()->{
+            try{
+                java.util.List<DoctorFiles.LocalEntry> entries=DoctorFiles.largestFiles();
+                handler.post(()->{
+                    if(currentPage!=FILES||!showingLargest)return;
+                    filePath.setText("FICHIERS VOLUMINEUX — ANALYSE DU STOCKAGE PARTAGÉ");
+                    fileStatus.setText("Les "+entries.size()+" plus gros fichiers parmi les fichiers parcourus (analyse limitée à 4 500 éléments).");
+                    fileRows.removeAllViews();
+                    for(DoctorFiles.LocalEntry e:entries)addLocalFileRow(e);
+                });
+            }catch(Exception e){handler.post(()->fileStatus.setText("Analyse impossible : "+e.getMessage()));}
+        },"doctor-large-files").start();
+    }
     private void reloadLocalFiles(){
+        showingLargest=false;
         if(!useSharedFiles||sharedFolder==null||fileRows==null||currentPage!=FILES)return;
         java.io.File folder=sharedFolder;
         fileStatus.setText("Analyse du dossier…");
@@ -559,7 +584,7 @@ public final class MainActivity extends Activity {
         LinearLayout details=column();item.addView(details,new LinearLayout.LayoutParams(0,-2,1));
         TextView name=label((e.directory?"▣  ":"◻  ")+e.name,14,TEXT,true);
         name.setMaxLines(2);details.addView(name);
-        sub(details,e.directory?tr("Dossier"):bytes(e.size));
+        sub(details,e.directory?tr("Dossier"):bytes(e.size)+" · "+e.file.getParent());
         Button open=button(e.directory?"Ouvrir":"Voir");
         item.addView(open,new LinearLayout.LayoutParams(dp(110),dp(40)));
         open.setOnClickListener(v->{
@@ -585,7 +610,7 @@ public final class MainActivity extends Activity {
                 boolean success=false;
                 try{success=DoctorFiles.deleteLocal(e.file);}catch(Exception ignored){}
                 boolean ok=success;
-                handler.post(()->{toast(ok?"Fichier supprimé.":"Suppression impossible. Vérifie les autorisations ou le contenu du dossier.");reloadLocalFiles();});
+                handler.post(()->{toast(ok?"Fichier supprimé.":"Suppression impossible. Vérifie les autorisations ou le contenu du dossier.");if(showingLargest)showLargestFiles();else reloadLocalFiles();});
             },"doctor-shared-delete").start()));
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(6);
         fileRows.addView(item,lp);
