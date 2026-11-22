@@ -49,6 +49,8 @@ public final class MainActivity extends Activity {
     private String currentFolderId;
     private final ArrayDeque<String> folderHistory=new ArrayDeque<>();
     private boolean largestFirst=true;
+    private java.io.File sharedFolder;
+    private boolean useSharedFiles=false;
     private LinearLayout fileRows;
     private TextView fileStatus, filePath;
 
@@ -425,6 +427,8 @@ public final class MainActivity extends Activity {
         page.addView(intro,new LinearLayout.LayoutParams(-1,-2));
         gap(page,8);
         LinearLayout actions=row();page.addView(actions,new LinearLayout.LayoutParams(-1,dp(46)));
+        boolean allFiles=android.os.Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager();
+        navButton(actions,allFiles?"Stockage partagé":"Autoriser accès complet",()->openSharedStorage());
         navButton(actions,"Choisir un dossier",()->chooseFolder());
         navButton(actions,"Dossier parent",()->goParentFolder());
         navButton(actions,largestFirst?"Trier par nom":"Trier par taille",()->{largestFirst=!largestFirst;showPage(FILES);});
@@ -433,6 +437,15 @@ public final class MainActivity extends Activity {
         gap(page,4);
         fileStatus=label("Chargement…",11,MUTED,false);page.addView(fileStatus);
         fileRows=column();gap(page,7);page.addView(fileRows);
+        useSharedFiles=allFiles&&prefs.getBoolean("use_shared_files",true);
+        if(useSharedFiles){
+            try{
+                if(sharedFolder==null)sharedFolder=DoctorFiles.sharedBase();
+                fileStatus.setText("Accès au stockage partagé autorisé. Répertoires Android protégés exclus.");
+                reloadLocalFiles();
+            }catch(Exception e){fileStatus.setText("Stockage partagé indisponible : "+e.getMessage());}
+            return;
+        }
         String saved=prefs.getString("folder_uri",null);
         if(saved==null){
             fileStatus.setText("Aucun dossier autorisé. Sélectionne un dossier accessible à partir du bouton ci-dessus.");
@@ -441,6 +454,36 @@ public final class MainActivity extends Activity {
         selectedTree=Uri.parse(saved);
         if(currentFolderId==null)currentFolderId=DocumentsContract.getTreeDocumentId(selectedTree);
         reloadFiles();
+    }
+    private void openSharedStorage(){
+        if(android.os.Build.VERSION.SDK_INT<30){
+            toast("Utilise la sélection de dossier sur cette version d'Android.");
+            return;
+        }
+        if(android.os.Environment.isExternalStorageManager()){
+            prefs.edit().putBoolean("use_shared_files",true).apply();
+            useSharedFiles=true;
+            try{sharedFolder=DoctorFiles.sharedBase();}catch(Exception e){toast("Stockage inaccessible.");return;}
+            showPage(FILES);return;
+        }
+        prefs.edit().putBoolean("pending_shared_access",true).apply();
+        Intent i=new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,Uri.parse("package:"+getPackageName()));
+        try{startActivity(i);}
+        catch(Exception e){
+            try{startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));}
+            catch(Exception second){toast("Le constructeur ne propose pas ce type d'autorisation sur cette TV.");}
+        }
+    }
+    @Override protected void onResume(){
+        super.onResume();
+        if(currentPage==FILES && prefs!=null && prefs.getBoolean("pending_shared_access",false)){
+            prefs.edit().putBoolean("pending_shared_access",false).apply();
+            if(android.os.Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager()){
+                prefs.edit().putBoolean("use_shared_files",true).apply();
+                try{sharedFolder=DoctorFiles.sharedBase();}catch(Exception ignored){}
+            }
+            showPage(FILES);
+        }
     }
     private void chooseFolder(){
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
@@ -456,7 +499,8 @@ public final class MainActivity extends Activity {
         try{
             int flags=data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             getContentResolver().takePersistableUriPermission(uri,flags);
-            prefs.edit().putString("folder_uri",uri.toString()).apply();
+            prefs.edit().putString("folder_uri",uri.toString()).putBoolean("use_shared_files",false).apply();
+            useSharedFiles=false;
             selectedTree=uri;
             currentFolderId=DocumentsContract.getTreeDocumentId(uri);
             folderHistory.clear();
@@ -464,12 +508,87 @@ public final class MainActivity extends Activity {
         }catch(Exception e){toast("Impossible d'autoriser ce dossier : "+e.getMessage());}
     }
     private void goParentFolder(){
+        if(useSharedFiles){
+            try{
+                java.io.File root=DoctorFiles.sharedBase();
+                if(sharedFolder==null||sharedFolder.getCanonicalFile().equals(root)){toast("Racine du stockage partagé.");return;}
+                sharedFolder=DoctorFiles.publicFolder(sharedFolder.getParentFile());
+                reloadLocalFiles();
+            }catch(Exception e){toast("Impossible d'ouvrir le dossier parent.");}
+            return;
+        }
         if(folderHistory.isEmpty()){
             toast("Tu es déjà à la racine du dossier autorisé.");
             return;
         }
         currentFolderId=folderHistory.pop();
         reloadFiles();
+    }
+    private void reloadLocalFiles(){
+        if(!useSharedFiles||sharedFolder==null||fileRows==null||currentPage!=FILES)return;
+        java.io.File folder=sharedFolder;
+        fileStatus.setText("Analyse du dossier…");
+        fileRows.removeAllViews();
+        new Thread(()->{
+            try{
+                java.util.List<DoctorFiles.LocalEntry> entries=DoctorFiles.listLocal(folder);
+                if(!largestFirst)entries.sort((a,b)->{
+                    if(a.directory!=b.directory)return a.directory?-1:1;
+                    return a.name.compareToIgnoreCase(b.name);
+                });
+                long total=0;int fileCount=0;
+                for(DoctorFiles.LocalEntry e:entries)if(!e.directory && e.size>0){total+=e.size;fileCount++;}
+                final long bytesTotal=total;final int count=fileCount;
+                handler.post(()->{
+                    if(currentPage!=FILES||!useSharedFiles||sharedFolder!=folder)return;
+                    filePath.setText("STOCKAGE PARTAGÉ : "+folder.getAbsolutePath());
+                    fileStatus.setText(entries.size()+" éléments · "+count+" fichiers · "+bytes(bytesTotal)+" visibles");
+                    fileRows.removeAllViews();
+                    for(DoctorFiles.LocalEntry entry:entries)addLocalFileRow(entry);
+                    if(entries.size()>=500)fileRows.addView(label("Affichage limité aux 500 premiers fichiers.",12,ORANGE,false));
+                });
+            }catch(Exception e){handler.post(()->{
+                if(currentPage==FILES && fileStatus!=null)fileStatus.setText("Accès refusé : "+e.getMessage());
+            });}
+        },"doctor-shared-files").start();
+    }
+    private void addLocalFileRow(DoctorFiles.LocalEntry e){
+        LinearLayout item=row();
+        item.setPadding(dp(12),dp(5),dp(12),dp(5));
+        item.setBackground(surface(new int[]{0xff152742,0xff101e34},0xff2b465e,12));
+        LinearLayout details=column();item.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+        TextView name=label((e.directory?"▣  ":"◻  ")+e.name,14,TEXT,true);
+        name.setMaxLines(2);details.addView(name);
+        sub(details,e.directory?tr("Dossier"):bytes(e.size));
+        Button open=button(e.directory?"Ouvrir":"Voir");
+        item.addView(open,new LinearLayout.LayoutParams(dp(110),dp(40)));
+        open.setOnClickListener(v->{
+            if(e.directory){sharedFolder=e.file;reloadLocalFiles();}
+            else try{
+                String full=e.file.getCanonicalPath(),root=DoctorFiles.sharedBase().getCanonicalPath();
+                String relative=full.substring(root.length()+1);
+                Uri uri=new Uri.Builder().scheme("content").authority("com.jbatomic.tvdoctor.shared")
+                    .appendPath("open").appendQueryParameter("path",relative).build();
+                Intent intent=new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(uri,getContentResolver().getType(uri));
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(intent,"Ouvrir un fichier"));
+            }catch(Exception exception){toast("Aucune application compatible avec ce fichier.");}
+        });
+        Button remove=button("Supprimer");
+        remove.setTextColor(ORANGE);
+        LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(dp(120),dp(40));dl.leftMargin=dp(7);
+        item.addView(remove,dl);
+        remove.setOnClickListener(v->confirm(e.directory?"Supprimer le dossier":"Supprimer le fichier",
+            "Supprimer définitivement « "+e.name+" » ? "+(e.directory?"Seul un dossier vide peut être supprimé.":"Cette suppression est définitive."),
+            ()->new Thread(()->{
+                boolean success=false;
+                try{success=DoctorFiles.deleteLocal(e.file);}catch(Exception ignored){}
+                boolean ok=success;
+                handler.post(()->{toast(ok?"Fichier supprimé.":"Suppression impossible. Vérifie les autorisations ou le contenu du dossier.");reloadLocalFiles();});
+            },"doctor-shared-delete").start()));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(6);
+        fileRows.addView(item,lp);
     }
     private void reloadFiles(){
         if(currentPage!=FILES || selectedTree==null || fileRows==null)return;
@@ -545,7 +664,7 @@ public final class MainActivity extends Activity {
         fileRows.addView(item,lp);
     }
     @Override public void onBackPressed(){
-        if(currentPage==FILES&&!folderHistory.isEmpty()){goParentFolder();return;}
+        if(currentPage==FILES&&(useSharedFiles||!folderHistory.isEmpty())){goParentFolder();return;}
         super.onBackPressed();
     }
     private void shareReport(){
