@@ -109,9 +109,36 @@ public final class DoctorWebServer {
             }
             if(path.equals("/api/files")){
                 org.json.JSONObject result=new org.json.JSONObject();
-                String saved=context.getSharedPreferences("doctor",Context.MODE_PRIVATE).getString("folder_uri",null);
+                android.content.SharedPreferences preferences=context.getSharedPreferences("doctor",Context.MODE_PRIVATE);
+                String saved=preferences.getString("folder_uri",null);
+                boolean shared=android.os.Build.VERSION.SDK_INT>=30
+                    && android.os.Environment.isExternalStorageManager()
+                    && preferences.getBoolean("use_shared_files",true);
                 try{
-                    if(saved==null){result.put("authorized",false);result.put("items",new org.json.JSONArray());}
+                    if(shared){
+                        String relative="";
+                        if(query!=null)for(String pair:query.split("&")){
+                            if(pair.startsWith("folder=")){
+                                relative=java.net.URLDecoder.decode(pair.substring(7),"UTF-8");
+                                break;
+                            }
+                        }
+                        if(relative.length()>512)throw new SecurityException("Path too long");
+                        java.io.File base=DoctorFiles.sharedBase();
+                        java.io.File target=DoctorFiles.publicFolder(new java.io.File(base,relative));
+                        java.util.List<DoctorFiles.LocalEntry> contents=DoctorFiles.listLocal(target);
+                        org.json.JSONArray items=new org.json.JSONArray();
+                        String prefix=target.getCanonicalPath().substring(base.getCanonicalPath().length());
+                        if(prefix.startsWith("/"))prefix=prefix.substring(1);
+                        for(DoctorFiles.LocalEntry f:contents){
+                            org.json.JSONObject item=new org.json.JSONObject();
+                            item.put("name",f.name);item.put("directory",f.directory);
+                            item.put("size",f.size);items.put(item);
+                        }
+                        result.put("authorized",true);result.put("source","shared");
+                        result.put("folder",prefix);result.put("items",items);
+                    }
+                    else if(saved==null){result.put("authorized",false);result.put("items",new org.json.JSONArray());}
                     else{
                         android.net.Uri folder=android.net.Uri.parse(saved);
                         java.util.List<DoctorFiles.Entry> list=DoctorFiles.list(context,folder,android.provider.DocumentsContract.getTreeDocumentId(folder));
