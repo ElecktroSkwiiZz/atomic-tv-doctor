@@ -44,7 +44,7 @@ public final class DoctorSnapshot {
         put(o,"android",Build.VERSION.RELEASE);put(o,"sdk",Build.VERSION.SDK_INT);
         put(o,"securityPatch",Build.VERSION.SECURITY_PATCH);
         put(o,"soc",Build.VERSION.SDK_INT>=31?Build.SOC_MODEL:"Non exposé");
-        put(o,"abis",new JSONArray(Build.SUPPORTED_ABIS));
+        put(o,"abis",new JSONArray(java.util.Arrays.asList(Build.SUPPORTED_ABIS)));
         put(o,"cpuCores",Runtime.getRuntime().availableProcessors());
         put(o,"uptimeSeconds",SystemClock.elapsedRealtime()/1000);
         put(o,"isTelevision",(context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK)==Configuration.UI_MODE_TYPE_TELEVISION);
