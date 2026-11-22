@@ -346,7 +346,7 @@ public final class MainActivity extends Activity {
         snapshot();
         Intent send=new Intent(Intent.ACTION_SEND);
         send.setType("application/json");
-        send.putExtra(Intent.EXTRA_TEXT,snapshot.toString(2));
+        send.putExtra(Intent.EXTRA_TEXT,snapshot.toString());
         try{startActivity(Intent.createChooser(send,"Exporter le diagnostic"));}catch(Exception e){toast("Aucune application ne prend en charge le partage sur cette TV.");}
     }
     private static final class AppEntry{
