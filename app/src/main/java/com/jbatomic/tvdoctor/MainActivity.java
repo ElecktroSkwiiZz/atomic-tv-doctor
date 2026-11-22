@@ -273,8 +273,8 @@ public final class MainActivity extends Activity {
     }
     private void checkUpdates(boolean interactive){
         if(checking)return;
-        checking=true;if(check!=null)check.setEnabled(false;
-        if(interactive&&updates!=null)if(updates!=null)updates.setText("Recherche de la dernière version…");
+        checking=true;if(check!=null)check.setEnabled(false);
+        if(interactive&&updates!=null)updates.setText("Recherche de la dernière version…");
         new Thread(()->{
             try {
                 URL u=new URL("https://api.github.com/repos/"+BuildConfig.GITHUB_REPOSITORY+"/releases/latest");
@@ -341,7 +341,7 @@ public final class MainActivity extends Activity {
                     if(android.os.Build.VERSION.SDK_INT>=26 && !getPackageManager().canRequestPackageInstalls()){
                         Intent settings=new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+getPackageName()));
                         startActivity(settings);
-                        updates.append("\nAutorisez les installations pour cette application, puis relancez.");
+                        if(updates!=null)updates.append("\nAutorisez les installations pour cette application, puis relancez.");
                         return;
                     }
                     Intent install=new Intent(Intent.ACTION_VIEW);
