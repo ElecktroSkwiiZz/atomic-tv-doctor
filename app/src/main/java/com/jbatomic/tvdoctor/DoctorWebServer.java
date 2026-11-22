@@ -104,6 +104,9 @@ public final class DoctorWebServer {
                 send(out,200,"application/json; charset=utf-8","{\"cleanedBytes\":"+bytes+"}");return;
             }
             if(!"GET".equals(first[0])){send(out,405,"text/plain","Only GET for this route");return;}
+            if(path.equals("/api/apps")){
+                send(out,200,"application/json; charset=utf-8",DoctorApps.list(context).toString());return;
+            }
             if(path.equals("/api/status")) {
                 send(out,200,"application/json; charset=utf-8",DoctorSnapshot.collect(context).toString());return;
             }
