@@ -13,6 +13,9 @@ import android.graphics.drawable.StateListDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+import android.Manifest;
+import android.os.Build;
 import android.content.ActivityNotFoundException;
 import android.os.Bundle;
 import android.os.Handler;
@@ -43,7 +46,8 @@ public final class MainActivity extends Activity {
     private Boolean rootAuthorized=null;
     private boolean rootChecking=false;
     private JSONObject snapshot=new JSONObject();
-    private static final int FILES=6, FOLDER_PICKER=625;
+    private static final int FILES=6, FOLDER_PICKER=625, MEDIA_PERMISSION=626, MEDIA_DELETE=627;
+    private boolean useMediaFiles=false;
     private int currentPage=DASH;
     private Uri selectedTree;
     private String currentFolderId;
@@ -421,41 +425,150 @@ public final class MainActivity extends Activity {
     private void fileManager(){
         snapshot();
         title(page,"Gestionnaire de fichiers et nettoyage",
-            "Navigue dans les dossiers que tu autorises. Suppression à l'unité avec confirmation ; aucun effacement automatique.");
+            "Mode compatible Android TV : vidéos, photos et musiques détectées. Aucun accès complet exigé.");
         LinearLayout intro=panel("Stockage",GREEN);
         metric(intro,bytes(snapshot.optLong("storageAvailable"))+" libres",TEXT);
-        sub(intro,bytes(snapshot.optLong("storageTotal"))+" de capacité totale · Android 11 protège certains dossiers");
+        sub(intro,bytes(snapshot.optLong("storageTotal"))+" au total · L'inventaire multimédia n'inclut pas toutes les données des applications.");
         page.addView(intro,new LinearLayout.LayoutParams(-1,-2));
         gap(page,8);
         LinearLayout actions=row();page.addView(actions,new LinearLayout.LayoutParams(-1,dp(46)));
-        boolean allFiles=android.os.Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager();
-        navButton(actions,allFiles?"Stockage partagé":"Autoriser accès complet",()->openSharedStorage());
-        navButton(actions,"Choisir un dossier",()->chooseFolder());
+        navButton(actions,"Médias de la TV",()->openMediaFiles(false));
         navButton(actions,"Fichiers volumineux",()->showLargestFiles());
-        navButton(actions,"Dossier parent",()->goParentFolder());
-        navButton(actions,largestFirst?"Trier par nom":"Trier par taille",()->{largestFirst=!largestFirst;showPage(FILES);});
-        gap(page,8);
-        filePath=label("Dossier autorisé",13,CYAN,true);page.addView(filePath);
+        navButton(actions,"Choisir un dossier",()->chooseFolder());
+        gap(page,5);
+        LinearLayout more=row();page.addView(more,new LinearLayout.LayoutParams(-1,dp(45)));
+        boolean allFiles=Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager();
+        navButton(more,allFiles?"Stockage partagé":"Accès complet (optionnel)",()->openSharedStorage());
+        navButton(more,"Dossier parent",()->goParentFolder());
+        navButton(more,largestFirst?"Trier par nom":"Trier par taille",()->{
+            largestFirst=!largestFirst;
+            if(useMediaFiles){showingLargest=false;reloadMediaFiles();}
+            else showPage(FILES);
+        });
+        gap(page,9);
+        filePath=label("FICHIERS ET DOSSIERS ACCESSIBLES",13,CYAN,true);page.addView(filePath);
         gap(page,4);
         fileStatus=label("Chargement…",11,MUTED,false);page.addView(fileStatus);
         fileRows=column();gap(page,7);page.addView(fileRows);
-        useSharedFiles=allFiles&&prefs.getBoolean("use_shared_files",true);
+
+        String saved=prefs.getString("folder_uri",null);
+        useMediaFiles=prefs.getBoolean("use_media_files",saved==null&&!allFiles);
+        useSharedFiles=!useMediaFiles&&allFiles&&prefs.getBoolean("use_shared_files",true);
+        if(useMediaFiles){reloadMediaFiles();return;}
         if(useSharedFiles){
             try{
                 if(sharedFolder==null)sharedFolder=DoctorFiles.sharedBase();
-                fileStatus.setText("Accès au stockage partagé autorisé. Répertoires Android protégés exclus.");
                 reloadLocalFiles();
             }catch(Exception e){fileStatus.setText("Stockage partagé indisponible : "+e.getMessage());}
             return;
         }
-        String saved=prefs.getString("folder_uri",null);
         if(saved==null){
-            fileStatus.setText("Aucun dossier autorisé. Sélectionne un dossier accessible à partir du bouton ci-dessus.");
-            return;
+            useMediaFiles=true;
+            prefs.edit().putBoolean("use_media_files",true).apply();
+            reloadMediaFiles();return;
         }
         selectedTree=Uri.parse(saved);
         if(currentFolderId==null)currentFolderId=DocumentsContract.getTreeDocumentId(selectedTree);
         reloadFiles();
+    }
+    private String[] mediaPermissions(){
+        if(Build.VERSION.SDK_INT>=33)
+            return new String[]{Manifest.permission.READ_MEDIA_VIDEO,Manifest.permission.READ_MEDIA_IMAGES,Manifest.permission.READ_MEDIA_AUDIO};
+        return new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
+    }
+    private boolean hasMediaPermission(){
+        if(Build.VERSION.SDK_INT<23)return true;
+        for(String permission:mediaPermissions())
+            if(checkSelfPermission(permission)==PackageManager.PERMISSION_GRANTED)return true;
+        return false;
+    }
+    private void requestMediaPermission(){
+        if(hasMediaPermission()){reloadMediaFiles();return;}
+        if(Build.VERSION.SDK_INT>=23){
+            try{requestPermissions(mediaPermissions(),MEDIA_PERMISSION);}
+            catch(Exception e){toast("La TV ne fournit pas le dialogue d'autorisation des médias. Ce catalogue restera limité.");}
+        }
+    }
+    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] grants){
+        super.onRequestPermissionsResult(code,permissions,grants);
+        if(code==MEDIA_PERMISSION && currentPage==FILES){
+            if(hasMediaPermission())reloadMediaFiles();
+            else if(fileStatus!=null)fileStatus.setText("Accès aux médias refusé ou non pris en charge. Aucun fichier personnel n'a été analysé.");
+        }
+    }
+    private void openMediaFiles(boolean large){
+        useMediaFiles=true;useSharedFiles=false;showingLargest=large;
+        prefs.edit().putBoolean("use_media_files",true).putBoolean("use_shared_files",false).apply();
+        if(currentPage==FILES&&fileRows!=null)reloadMediaFiles();
+        else showPage(FILES);
+    }
+    private void reloadMediaFiles(){
+        if(currentPage!=FILES||fileRows==null)return;
+        fileRows.removeAllViews();
+        filePath.setText(showingLargest?"FICHIERS MULTIMÉDIAS VOLUMINEUX":"MÉDIAS DE LA TV — MODE COMPATIBLE");
+        if(!hasMediaPermission()){
+            fileStatus.setText("Autorise la lecture des médias pour afficher les vidéos, photos et musiques indexées par Android.");
+            Button permission=button("Autoriser l'accès aux médias");
+            fileRows.addView(permission,new LinearLayout.LayoutParams(-1,dp(45)));
+            permission.setOnClickListener(v->requestMediaPermission());
+            sub(fileRows,"Cette autorisation ne donne pas accès aux fichiers privés des autres applications ni aux APK non indexés.");
+            return;
+        }
+        final boolean large=showingLargest;
+        fileStatus.setText("Analyse du catalogue multimédia Android…");
+        new Thread(()->{
+            try{
+                List<DoctorMedia.Item> items=DoctorMedia.list(this,large||largestFirst,250);
+                handler.post(()->{
+                    if(currentPage!=FILES||!useMediaFiles||showingLargest!=large)return;
+                    fileRows.removeAllViews();
+                    long total=0;
+                    for(DoctorMedia.Item i:items)if(i.size>0)total+=i.size;
+                    fileStatus.setText(items.size()+" médias visibles · "+bytes(total)+" recensés (liste limitée à 250 fichiers)");
+                    if(items.isEmpty()){
+                        fileRows.addView(label("Aucun média indexé par Android ou autorisation trop limitée.",13,MUTED,false));
+                        return;
+                    }
+                    for(DoctorMedia.Item item:items)addMediaRow(item);
+                });
+            }catch(Exception e){handler.post(()->{
+                if(currentPage==FILES&&useMediaFiles&&fileStatus!=null)
+                    fileStatus.setText("Catalogue multimédia non disponible : "+e.getMessage());
+            });}
+        },"doctor-media-scan").start();
+    }
+    private void addMediaRow(DoctorMedia.Item entry){
+        LinearLayout item=row();item.setPadding(dp(12),dp(5),dp(12),dp(5));
+        item.setBackground(surface(new int[]{0xff152742,0xff101e34},0xff30465e,12));
+        LinearLayout details=column();item.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+        TextView name=label("◻  "+entry.name,14,TEXT,true);name.setMaxLines(2);details.addView(name);
+        sub(details,bytes(entry.size)+(entry.folder.isEmpty()?"":" · "+entry.folder));
+        Button open=button("Ouvrir");item.addView(open,new LinearLayout.LayoutParams(dp(100),dp(42)));
+        open.setOnClickListener(v->{
+            try{
+                Intent intent=new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(entry.uri,entry.mime);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(Intent.createChooser(intent,"Ouvrir le média"));
+            }catch(Exception e){toast("Aucune application compatible ne peut ouvrir ce média.");}
+        });
+        Button delete=button("Supprimer");delete.setTextColor(ORANGE);
+        LinearLayout.LayoutParams del=new LinearLayout.LayoutParams(dp(116),dp(42));del.leftMargin=dp(8);
+        item.addView(delete,del);
+        delete.setOnClickListener(v->confirm("Supprimer un média",
+            "Demander à Android la suppression de « "+entry.name+" » ? L'appareil doit confirmer cette opération. La suppression peut être irréversible.",
+            ()->requestMediaDeletion(entry)));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(6);
+        fileRows.addView(item,lp);
+    }
+    private void requestMediaDeletion(DoctorMedia.Item entry){
+        if(Build.VERSION.SDK_INT>=30){
+            try{
+                android.app.PendingIntent pending=MediaStore.createDeleteRequest(
+                    getContentResolver(),java.util.Collections.singletonList(entry.uri));
+                startIntentSenderForResult(pending.getIntentSender(),MEDIA_DELETE,null,0,0,0);
+            }catch(Exception e){toast("Android ne permet pas la suppression de ce média : "+e.getMessage());}
+        }else toast("La suppression de médias tiers est indisponible sans autorisation système sur cette version Android.");
     }
     private void openSharedStorage(){
         if(android.os.Build.VERSION.SDK_INT<30){
@@ -463,8 +576,8 @@ public final class MainActivity extends Activity {
             return;
         }
         if(android.os.Environment.isExternalStorageManager()){
-            prefs.edit().putBoolean("use_shared_files",true).apply();
-            useSharedFiles=true;
+            prefs.edit().putBoolean("use_shared_files",true).putBoolean("use_media_files",false).apply();
+            useMediaFiles=false;useSharedFiles=true;
             try{sharedFolder=DoctorFiles.sharedBase();}catch(Exception e){toast("Stockage inaccessible.");return;}
             showPage(FILES);return;
         }
@@ -473,7 +586,7 @@ public final class MainActivity extends Activity {
         try{startActivity(i);}
         catch(Exception e){
             try{startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));}
-            catch(Exception second){toast("Le constructeur ne propose pas ce type d'autorisation sur cette TV.");}
+            catch(Exception second){openMediaFiles(false);toast("Le constructeur ne propose pas cette autorisation. Le mode Médias compatible reste disponible.");}
         }
     }
     @Override protected void onResume(){
@@ -481,7 +594,7 @@ public final class MainActivity extends Activity {
         if(currentPage==FILES && prefs!=null && prefs.getBoolean("pending_shared_access",false)){
             prefs.edit().putBoolean("pending_shared_access",false).apply();
             if(android.os.Build.VERSION.SDK_INT>=30&&android.os.Environment.isExternalStorageManager()){
-                prefs.edit().putBoolean("use_shared_files",true).apply();
+                prefs.edit().putBoolean("use_shared_files",true).putBoolean("use_media_files",false).apply();
                 try{sharedFolder=DoctorFiles.sharedBase();}catch(Exception ignored){}
             }
             showPage(FILES);
@@ -496,12 +609,16 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==MEDIA_DELETE){
+            if(currentPage==FILES&&useMediaFiles)reloadMediaFiles();
+            return;
+        }
         if(requestCode!=FOLDER_PICKER||resultCode!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
         try{
             int flags=data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             getContentResolver().takePersistableUriPermission(uri,flags);
-            prefs.edit().putString("folder_uri",uri.toString()).putBoolean("use_shared_files",false).apply();
+            prefs.edit().putString("folder_uri",uri.toString()).putBoolean("use_shared_files",false).putBoolean("use_media_files",false).apply();
             useSharedFiles=false;
             selectedTree=uri;
             currentFolderId=DocumentsContract.getTreeDocumentId(uri);
@@ -510,6 +627,7 @@ public final class MainActivity extends Activity {
         }catch(Exception e){toast("Impossible d'autoriser ce dossier : "+e.getMessage());}
     }
     private void goParentFolder(){
+        if(useMediaFiles){toast("La bibliothèque de médias n'a pas de dossier parent.");return;}
         if(useSharedFiles){
             try{
                 java.io.File root=DoctorFiles.sharedBase();
@@ -527,8 +645,8 @@ public final class MainActivity extends Activity {
         reloadFiles();
     }
     private void showLargestFiles(){
-        if(android.os.Build.VERSION.SDK_INT<30||!android.os.Environment.isExternalStorageManager()){
-            toast("Pour analyser le stockage partagé, autorise d'abord l'accès aux fichiers.");
+        if(Build.VERSION.SDK_INT<30||!android.os.Environment.isExternalStorageManager()){
+            openMediaFiles(true);
             return;
         }
         useSharedFiles=true;showingLargest=true;
@@ -689,7 +807,7 @@ public final class MainActivity extends Activity {
         fileRows.addView(item,lp);
     }
     @Override public void onBackPressed(){
-        if(currentPage==FILES&&(useSharedFiles||!folderHistory.isEmpty())){goParentFolder();return;}
+        if(currentPage==FILES&&!useMediaFiles&&(useSharedFiles||!folderHistory.isEmpty())){goParentFolder();return;}
         super.onBackPressed();
     }
     private void shareReport(){
