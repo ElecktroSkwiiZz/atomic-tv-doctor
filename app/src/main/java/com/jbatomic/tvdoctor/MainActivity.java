@@ -710,7 +710,7 @@ public final class MainActivity extends Activity {
             else try{
                 String full=e.file.getCanonicalPath(),root=DoctorFiles.sharedBase().getCanonicalPath();
                 String relative=full.substring(root.length()+1);
-                Uri uri=new Uri.Builder().scheme("content").authority("com.jbatomic.tvdoctor.shared")
+                Uri uri=new Uri.Builder().scheme("content").authority(BuildConfig.APPLICATION_ID+".shared")
                     .appendPath("open").appendQueryParameter("path",relative).build();
                 Intent intent=new Intent(Intent.ACTION_VIEW);
                 intent.setDataAndType(uri,getContentResolver().getType(uri));
@@ -1092,7 +1092,7 @@ public final class MainActivity extends Activity {
                         return;
                     }
                     Intent install=new Intent(Intent.ACTION_VIEW);
-                    install.setDataAndType(Uri.parse("content://com.jbatomic.tvdoctor.installer/update.apk"),"application/vnd.android.package-archive");
+                    install.setDataAndType(Uri.parse("content://"+BuildConfig.APPLICATION_ID+".installer/update.apk"),"application/vnd.android.package-archive");
                     install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(install);
                 });
