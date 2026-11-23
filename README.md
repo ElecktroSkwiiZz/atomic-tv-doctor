@@ -4,7 +4,17 @@
 
 [![Android TV build](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml/badge.svg)](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml)
 
-## Version 1.3.0 — Fonctionnalités
+## Version 1.3.1 — Fonctionnalités
+
+### Correctif TCL Android TV — stockage sans accès complet (v1.3.1)
+
+Sur certaines Android TV (notamment certains firmwares TCL), l'écran Android de permission **Gestion de tous les fichiers** n'existe pas. L'application ne doit pas rester bloquée sur cette demande.
+
+- **Médias de la TV** : mode de consultation autonome via `MediaStore` (photos, vidéos et musiques indexées par Android). Il demande uniquement la permission de lecture multimédia si nécessaire et reste utilisable sans `MANAGE_EXTERNAL_STORAGE`.
+- **Fichiers volumineux** : classement par taille des médias visibles ; ce mode ne prétend pas explorer les archives, APK, dossiers privés ou autres fichiers invisibles dans `MediaStore`.
+- **Ouvrir / Supprimer** : ouverture par les applications compatibles ; suppression à l'unité après deux confirmations (Doctor, puis le dialogue de permission système Android 11+).
+- **Choisir un dossier** : disponible si le constructeur fournit un sélecteur SAF ; **Accès complet (optionnel)** demeure distinct, uniquement lorsque le système peut l'accorder.
+- **Limites** : si Android refuse également l'accès aux médias, les fichiers personnels ne sont pas accessibles sans permission ou privilège supplémentaire. L'interface le signale clairement et n'annonce pas de nettoyage fictif.
 
 ### Nouveau dans la V1.3
 
