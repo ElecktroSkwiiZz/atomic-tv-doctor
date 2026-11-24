@@ -4,6 +4,14 @@
 
 [![Android TV build](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml/badge.svg)](https://github.com/ElecktroSkwiiZz/atomic-tv-doctor/actions/workflows/android.yml)
 
+
+## Présentation officielle · Official product pages
+
+- 🇫🇷 [Français — diagnostic Android TV](https://jbatomic.com/atomic-tv-doctor/)
+- 🇬🇧 [English — Android TV diagnostics](https://jbatomic.com/en/atomic-tv-doctor/)
+- 🇪🇸 [Español — diagnóstico Android TV](https://jbatomic.com/es/atomic-tv-doctor/)
+- 🇷🇺 [Русский — диагностика Android TV](https://jbatomic.com/ru/atomic-tv-doctor/)
+
 ## Version 1.3.1 — Fonctionnalités
 
 ### Correctif TCL Android TV — stockage sans accès complet (v1.3.1)
